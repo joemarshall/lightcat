@@ -100,8 +100,8 @@ static void wheel_cb(lv_event_t *e)
       snprintf(text,64,"Button touching at %d %d (%d %d %d)",lastX,lastY,r,g,b);
       lv_label_set_text(label, text);
       // move crosshairs to point here
-      lv_obj_set_x(crosshair_img,lastX-(crosshairs->header.w>>1));
-      lv_obj_set_y(crosshair_img,lastY-(crosshairs->header.h>>1));  
+      lv_obj_set_x(crosshair_img,lastX-(crosshairs.header.w>>1));
+      lv_obj_set_y(crosshair_img,lastY-(crosshairs.header.h>>1));  
     }
     break;
 
@@ -219,7 +219,7 @@ void lv_example_event_2(void)
   down_img = lv_image_create(lv_screen_active());
   lv_obj_add_flag(down_img, LV_OBJ_FLAG_FLOATING);  
   lv_image_set_src(down_img,&cat_less);
-  lv_obj_set_y(down_img, 2r0);
+  lv_obj_set_y(down_img, 240);
   lv_obj_set_x(down_img,0);
 
   lv_obj_t *info_label = lv_label_create(lv_screen_active());
