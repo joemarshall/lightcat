@@ -7,6 +7,14 @@
 
 LV_IMAGE_DECLARE(wheel);
 LV_IMAGE_DECLARE(wheel_pressed);
+LV_IMAGE_DECLARE(crosshairs);
+lv_obj_t * up;
+lv_obj_t * down;
+lv_obj_t * up_img;
+lv_obj_t * down_img;
+lv_obj_t * crosshair_img;
+
+
 
 constexpr int32_t HOR_RES=320;
 constexpr int32_t VER_RES=240;
@@ -56,8 +64,7 @@ void my_touchpad_read(lv_indev_t * drv, lv_indev_data_t * data) {
 }
 
 // LVGL code - Handle multiple events demo
-
-static void event_cb(lv_event_t *e)
+static void wheel_cb(lv_event_t *e)
 {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t *label = reinterpret_cast<lv_obj_t *>(lv_event_get_user_data(e));
@@ -93,7 +100,8 @@ static void event_cb(lv_event_t *e)
       snprintf(text,64,"Button touching at %d %d (%d %d %d)",lastX,lastY,r,g,b);
       lv_label_set_text(label, text);
       // move crosshairs to point here
-  
+      lv_obj_set_x(crosshair_img,lastX-(crosshairs->header.w>>1));
+      lv_obj_set_y(crosshair_img,lastY-(crosshairs->header.h>>1));  
     }
     break;
 
@@ -114,10 +122,43 @@ static void event_cb(lv_event_t *e)
   }
 }
 
+static void updown_cb(lv_event_t *e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_obj_t *cat_pic = reinterpret_cast<lv_obj_t *>(lv_event_get_user_data(e));
+
+  lv_anim_t a;
+
+  switch(code){
+    case LV_EVENT_PRESSED:
+      lv_anim_init(&a);
+      lv_anim_set_var(&a, cat_pic);
+      lv_anim_set_values(&a, lv_obj_get_y(cat_pic), 240-100);
+      lv_anim_set_duration(&a, 200);
+      lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+      lv_anim_set_path_cb(&a, lv_anim_path_bounce);
+      lv_anim_start(&a);
+      Serial.println("Pressed");
+    break;
+    case LV_EVENT_RELEASED:
+      lv_anim_init(&a);
+      lv_anim_set_var(&a, cat_pic);
+      lv_anim_set_values(&a, lv_obj_get_y(cat_pic), 240);
+      lv_anim_set_duration(&a, 200);
+      lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+      lv_anim_set_path_cb(&a, lv_anim_path_bounce);
+      lv_anim_start(&a);
+      Serial.println("Released");
+  break;
+  }
+  
+}
+
 void my_log_cb(lv_log_level_t level, const char * buf)
 {
   Serial.write(buf);
 }
+
 
 
 
@@ -144,27 +185,58 @@ void lv_example_event_2(void)
   lv_imgbtn_set_src(img, LV_IMGBTN_STATE_PRESSED,NULL,&wheel_pressed,NULL);
   lv_obj_center(img);
 
+  crosshair_img = lv_image_create(lv_screen_active());
+  lv_image_set_src(crosshair_img,&crosshairs);
+  lv_obj_center(img);
+  lv_obj_add_flag(crosshair_img, LV_OBJ_FLAG_FLOATING);  
+
+
+  LV_IMAGE_DECLARE(cat_less);
+  LV_IMAGE_DECLARE(cat_more);
+
   LV_IMAGE_DECLARE(uparrow);
   LV_IMAGE_DECLARE(downarrow);
-  lv_obj_t * up;
+  
   up = lv_imgbtn_create(lv_scr_act() );
   lv_imgbtn_set_src(up, LV_IMGBTN_STATE_RELEASED,NULL,&uparrow,NULL);
   lv_imgbtn_set_src(up, LV_IMGBTN_STATE_PRESSED,NULL,&uparrow,NULL);
   lv_obj_align(up, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
-  lv_obj_t * down;
+
+  up_img = lv_image_create(lv_screen_active());
+  lv_image_set_src(up_img,&cat_more);
+  lv_obj_set_y(up_img, 240);
+  lv_obj_set_x(up_img,220);
+  lv_obj_add_flag(up_img, LV_OBJ_FLAG_FLOATING);  
+
+  
   down = lv_imgbtn_create(lv_scr_act() );
   lv_imgbtn_set_src(down, LV_IMGBTN_STATE_RELEASED,NULL,&downarrow,NULL);
   lv_imgbtn_set_src(down, LV_IMGBTN_STATE_PRESSED,NULL,&downarrow,NULL);
   lv_obj_align(down, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
+  
+  down_img = lv_image_create(lv_screen_active());
+  lv_obj_add_flag(down_img, LV_OBJ_FLAG_FLOATING);  
+  lv_image_set_src(down_img,&cat_less);
+  lv_obj_set_y(down_img, 2r0);
+  lv_obj_set_x(down_img,0);
 
   lv_obj_t *info_label = lv_label_create(lv_screen_active());
   lv_label_set_text(info_label, "The last button event:\nNone");
   lv_obj_set_style_text_color(info_label,LV_COLOR_MAKE(255, 255, 255),LV_PART_MAIN);
 
 
-  lv_obj_add_event_cb(img, event_cb, LV_EVENT_ALL, info_label);
+
+  lv_obj_add_event_cb(img, wheel_cb, LV_EVENT_ALL, info_label);
+  lv_obj_add_event_cb(crosshair_img, wheel_cb, LV_EVENT_ALL, info_label);
+  
+
+  lv_obj_add_event_cb(up, updown_cb, LV_EVENT_ALL, up_img);
+  lv_obj_add_event_cb(down, updown_cb, LV_EVENT_ALL, down_img);
+
+  lv_obj_add_event_cb(up_img,updown_cb,LV_EVENT_ALL,up_img);
+  lv_obj_add_event_cb(down_img,updown_cb,LV_EVENT_ALL,down_img);
 }
 
 // continue setup code
