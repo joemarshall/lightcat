@@ -114,7 +114,7 @@ protected:
       lv_anim_init(&a);
       lv_anim_set_var(&a, cat_pic);
       lv_anim_set_values(&a, lv_obj_get_y(cat_pic), 240 - 100);
-      lv_anim_set_duration(&a, 200);
+      lv_anim_set_duration(&a, 50);
       lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
       lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
       lv_anim_start(&a);

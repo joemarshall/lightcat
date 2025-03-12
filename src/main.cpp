@@ -9,7 +9,7 @@
 
 #include"colour_screen.h"
 #include"standby_screen.h"
-
+#include"sound_input.h"
 
 std::array<Screen*,1> screens;
 
@@ -74,9 +74,13 @@ void init_screens()
 {
   screens[0]=new ColourScreen();
 //  screens[0]->SetCurrent(false);
-  screens[1]=new StandbyScreen(screens[0]);
+  screens[1]=new StandbyScreen();
   screens[1]->SetCurrent(false);
+  screens[1]->SetNext(screens[0]);
 }
+
+
+SoundInput sound;
 
 
 // continue setup code
@@ -103,10 +107,13 @@ void setup() {
   lv_indev_set_read_cb(indev, my_touchpad_read);
 
   init_screens();
+  sound.init();
 
 }
+
 
 void loop() {
   lv_task_handler();
   vTaskDelay(1);
+  sound.doProcessing();
 }

@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.uplugin": "json",
+        "array": "cpp"
+    }
+}
