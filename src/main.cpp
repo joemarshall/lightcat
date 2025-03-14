@@ -9,9 +9,10 @@
 
 #include"colour_screen.h"
 #include"standby_screen.h"
+#include"disco_screen.h"
 #include"sound_input.h"
 
-std::array<Screen*,1> screens;
+std::array<Screen*,3> screens;
 
 constexpr int32_t HOR_RES=320;
 constexpr int32_t VER_RES=240;
@@ -72,11 +73,13 @@ void my_log_cb(lv_log_level_t level, const char * buf)
 
 void init_screens()
 {
-  screens[0]=new ColourScreen();
 //  screens[0]->SetCurrent(false);
-  screens[1]=new StandbyScreen();
-  screens[1]->SetCurrent(false);
+  screens[0]=new StandbyScreen();
+  screens[1]=new ColourScreen();
+  screens[2]=new DiscoScreen();
   screens[1]->SetNext(screens[0]);
+  screens[2]->SetNext(screens[1]);
+  screens[2]->SetCurrent(false);
 }
 
 

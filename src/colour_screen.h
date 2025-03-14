@@ -61,7 +61,7 @@ public:
 
 protected:
   void OnColourwheel(lv_event_code_t code) {
-    if (code == LV_EVENT_PRESSING) {
+    if (code == LV_EVENT_PRESSING || code == LV_EVENT_PRESSED) {
 
       if (lastX != -1) {
         LV_IMAGE_DECLARE(wheel);

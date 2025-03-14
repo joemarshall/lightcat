@@ -27,7 +27,7 @@ class SoundInput
         {
             float power = (((float)c) *max_power)/256.0;
             log10Table[c] = (int32_t)(pow10f(power));
-            Serial.println(log10Table[c]);
+            //Serial.println(log10Table[c]);
         }
         // create hann window for fft data
         float fWindow[FFT_SIZE];
@@ -115,8 +115,8 @@ class SoundInput
             sum = 32767;
         }
         lastLevel = (int16_t)sum;
-        Serial.print("!");
-        Serial.println(lastLevel);
+        //Serial.print("!");
+        //Serial.println(lastLevel);
     }
     // do fft - n.b. this is in-place,
     // so do this *after* calculating amplitude
@@ -152,17 +152,16 @@ class SoundInput
                 maxPos=c;
             }
         }
-     
-        for(int c=0;c<lastSpectrum.size();c++){
-            if(lastSpectrum[c]<(maxMag>>2)){
+/*        for(int c=0;c<lastSpectrum.size();c++){
+            if(lastSpectrum[c]<(50)){
                 Serial.print("_");
-            }else if(lastSpectrum[c]<(maxMag>>1)){
+            }else if(lastSpectrum[c]<(100)){
                 Serial.print("-");
             }else{
                 Serial.print("^");
             }
         }
-        Serial.println("");
+        Serial.println("");*/
     }
 
     int16_t lookupLog10(int32_t input)
