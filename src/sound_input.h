@@ -16,6 +16,7 @@ class SoundInput
 
     void init()
     {
+        singleton=this;
         nextWriteBuffer = 0;
         // setup fft
         dsps_fft2r_init_sc16(NULL, FFT_SIZE);
@@ -46,6 +47,11 @@ class SoundInput
         cfg.magnification = cfg.use_adc ? 16 : 1;
         M5.Mic.config(cfg);
         M5.Mic.begin();
+    }
+
+    SoundInput* GetSoundInput()
+    {
+        return singleton;
     }
 
     virtual ~SoundInput()
@@ -122,20 +128,15 @@ class SoundInput
     // so do this *after* calculating amplitude
     void doFFT(BufType &inBuf)
     {
-   //     Serial.println("*");
         int16_t *bufData = inBuf.data();
         // apply window
         dsps_mul_s16(bufData, window.data(), bufData, FFT_SIZE, 1, 1, 1, 15);
-  //      Serial.println(bufData[FFT_SIZE>>3]);
         // do fft as if it was complex
         dsps_fft2r_sc16(bufData, FFT_SIZE >> 1);
-  //      Serial.println(bufData[FFT_SIZE>>3]);
         // now flip things round
         // for a real power spectrum
         dsps_bit_rev_sc16_ansi(bufData, FFT_SIZE >> 1);
-  //      Serial.println(bufData[FFT_SIZE>>3]);
         dsps_cplx2real_sc16_ansi(bufData, FFT_SIZE >> 1);
-  //      Serial.println(bufData[FFT_SIZE>>3]);
         // now calculate magnitudes from the (complex)
         // output spectrum
         int16_t maxMag=-1;
@@ -152,16 +153,6 @@ class SoundInput
                 maxPos=c;
             }
         }
-/*        for(int c=0;c<lastSpectrum.size();c++){
-            if(lastSpectrum[c]<(50)){
-                Serial.print("_");
-            }else if(lastSpectrum[c]<(100)){
-                Serial.print("-");
-            }else{
-                Serial.print("^");
-            }
-        }
-        Serial.println("");*/
     }
 
     int16_t lookupLog10(int32_t input)
@@ -184,4 +175,6 @@ class SoundInput
     int16_t lastMaxFreq;
     BufType window;
     std::array<int32_t,256> log10Table;
+
+    inline static SoundInput* singleton=NULL;
 };

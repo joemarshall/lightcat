@@ -1,9 +1,50 @@
 #pragma once
 
-#define NUM_LEDS 60 * 6
+#include <FastLED.h>
 
 class LightOutput
 {
+    public:
+    static const int NUM_LED1= 60 * 3;
+    static const int NUM_LED2= 60 * 3;
+    static const int NUM_LEDS = (NUM_LED1 + NUM_LED2);
+    static const int STRIP1_PIN = 32;
+    static const int STRIP2_PIN = 32;
+
+    // LED count of first strip of
+    // each one - STRIP1 = short then long
+    // STRIP2 = long then short
+    static const int STRIP1_SPLIT_POINT = 60;
+    static const int STRIP2_SPLIT_POINT = 120;
+
+    void init()
+    {
+        FastLED.addLeds<WS2813, STRIP1_PIN>(strip1Buffer, NUM_LED1);
+        FastLED.addLeds<WS2813, STRIP2_PIN>(strip2Buffer, NUM_LED2);
+        singleton=this;
+    }
+
+    static LightOutput* GetLightOutput()
+    {  
+        return singleton;
+    }
+
+    const uint8_t GAMMA_TABLE[256] = {
+        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,   1,   1,   1,   1,
+        1,   1,   1,   1,   1,   2,   2,   2,   2,   2,   2,   2,   2,   3,   3,   3,   3,   3,
+        3,   3,   4,   4,   4,   4,   4,   5,   5,   5,   5,   6,   6,   6,   6,   7,   7,   7,
+        7,   8,   8,   8,   9,   9,   9,   10,  10,  10,  11,  11,  11,  12,  12,  13,  13,  13,
+        14,  14,  15,  15,  16,  16,  17,  17,  18,  18,  19,  19,  20,  20,  21,  21,  22,  22,
+        23,  24,  24,  25,  25,  26,  27,  27,  28,  29,  29,  30,  31,  32,  32,  33,  34,  35,
+        35,  36,  37,  38,  39,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  50,
+        51,  52,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  66,  67,  68,  69,  70,
+        72,  73,  74,  75,  77,  78,  79,  81,  82,  83,  85,  86,  87,  89,  90,  92,  93,  95,
+        96,  98,  99,  101, 102, 104, 105, 107, 109, 110, 112, 114, 115, 117, 119, 120, 122, 124,
+        126, 127, 129, 131, 133, 135, 137, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158,
+        160, 162, 164, 167, 169, 171, 173, 175, 177, 180, 182, 184, 186, 189, 191, 193, 196, 198,
+        200, 203, 205, 208, 210, 213, 215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244,
+        247, 249, 252, 255};
 
     enum EFFECT_TYPE
     {
@@ -52,70 +93,82 @@ class LightOutput
                 light_buffer[c * 3 + 1] = (g * thisLevel) >> 8;
                 light_buffer[c * 3 + 2] = (b * thisLevel) >> 8;
             }
-            for (int c = endPos; c < NUM_LEDS/2; c++)
+            for (int c = endPos; c < NUM_LEDS / 2; c++)
             {
                 light_buffer[c * 3] = 0;
                 light_buffer[c * 3 + 1] = 0;
                 light_buffer[c * 3 + 2] = 0;
             }
-            // other end is symmetrical
-            for(int c=0,int d=NUM_LEDS-1;d>=NUM_LEDS/2;d--,c++){
-                light_buffer[d*3] = light_buffer[c*3];
-                light_buffer[d*3+1] = light_buffer[c*3+1];
-                light_buffer[d*3+2] = light_buffer[c*3+2];
+            // other side is symmetrical
+            for (int c = 0, d = NUM_LEDS - 1; d >= NUM_LEDS / 2; d--, c++)
+            {
+                light_buffer[d * 3] = light_buffer[c * 3];
+                light_buffer[d * 3 + 1] = light_buffer[c * 3 + 1];
+                light_buffer[d * 3 + 2] = light_buffer[c * 3 + 2];
             }
-            updateOutputBuffer();
+            updateRawBuffer();
         }
     }
 
   protected:
+    inline CRGB applyGamma(CRGB val)
+    {
+        val.r = GAMMA_TABLE[val.r];
+        val.g = GAMMA_TABLE[val.g];
+        val.b = GAMMA_TABLE[val.b];
+        return val;
+    }
+
     void updateRawBuffer()
     {
-        // LEDs are in 12 parts logically
-        int barStarts[6]={
-            NUM_LEDS/12, 1 = 2nd half of first bar
-            2* NUM_LEDS/12, 2 = 2nd and 3rd bars
-            11 * NUM_LEDS/12, // 2nd half of last bar, reversed
-            10*NUM_LEDS/12, // 1st half of last bar, reversed
-            8 * NUM_LEDS/12, // 4th and 5th bars, reversed
-            0, // 1st half of 1st bar, not reversed
+        // LEDs are in 2 strips, split into 3 bars each
+        CRGB *barStarts[3] = {
+            &strip1Buffer[STRIP1_SPLIT_POINT / 2], // from half way along 1st bar
+            &strip2Buffer[0],                      // all of strip2 reversed
+            &strip1Buffer[0],                      // 1st half of last bar, reversed
         };
-        int barCounts[6]={
-            NUM_LEDS/12,4*NUM_LEDS/12,-NUM_LEDS/12,-NUM_LEDS/12,4*-NUM_LEDS/12,NUM_LEDS/12
-        };
+        int barCounts[3] = {NUM_LED1 - (STRIP1_SPLIT_POINT / 2), -NUM_LED2,
+                            -(STRIP1_SPLIT_POINT / 2)};
 
-        // TODO: gamma correct here
-        int inPos=0;
-        for(int c=0;c<6;c++){
-            int start =barStarts[c];
+        int inPos = 0;
+        for (int c = 0; c < 3; c++)
+        {
+            CRGB *outBuf = barStarts[c];
             int count = barCounts[c];
-            if(count<0){
+            if (count < 0)
+            {
                 // from start+count-1 backwards
-                count=-count;
-                for(int pos=start+count-1;pos>=start;pos--){
-                    raw_light_buffer[pos*3]=light_buffer[inPos*3];
-                    raw_light_buffer[pos*3+1]=light_buffer[inPos*3+1];
-                    raw_light_buffer[pos*3+2]=light_buffer[inPos*3+2];
-                    inPos++;
+                count = -count;
+                for (int pos = count - 1; pos >= 0; pos--)
+                {
+                    outBuf[pos] = applyGamma(CRGB(light_buffer[inPos], light_buffer[inPos + 1],
+                                                  light_buffer[inPos + 2]));
+                    inPos += 3;
                 }
-            }else{
+            }
+            else
+            {
                 // from start to start+count
-                for(int pos=start;pos<start+count;pos++){
-                    raw_light_buffer[pos*3]=light_buffer[inPos*3];
-                    raw_light_buffer[pos*3+1]=light_buffer[inPos*3+1];
-                    raw_light_buffer[pos*3+2]=light_buffer[inPos*3+2];
-                    inPos++;
+                for (int pos = 0; pos < count; pos++)
+                {
+                    outBuf[pos] = applyGamma(CRGB(light_buffer[inPos], light_buffer[inPos + 1],
+                                                  light_buffer[inPos + 2]));
+                    inPos += 3;
                 }
             }
         }
-
+        // show the LEDs
+        FastLED.show();
     }
     EFFECT_TYPE currentEffect;
     // the logical light buffer (ordered by logical position round the
     // circle)
     uint8_t light_buffer[3 * NUM_LEDS];
 
-    // light buffer ordered by electrical position on the two strings
+    // fastLED light buffer ordered by electrical position on the two strings
     // and gamma corrected
-    uint8_t raw_light_buffer[3 * NUM_LEDS];
+    CRGB strip1Buffer[NUM_LED1];
+    CRGB strip2Buffer[NUM_LED2];
+
+    inline static LightOutput* singleton;
 };
