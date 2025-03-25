@@ -17,7 +17,7 @@ class StandbyScreen : public Screen
         lv_imgbtn_set_src(background, LV_IMGBTN_STATE_PRESSED, NULL, &standby, NULL);
         lv_obj_center(background);
         HandleEvent(background, LV_EVENT_ALL);
-        lv_timer_create(OnTimerStatic, 1000, this);
+        enableTimer(1000);
     }
 
 
@@ -34,23 +34,14 @@ class StandbyScreen : public Screen
 
     protected:
 
-    void OnTimer()
+    virtual void onTimer(int id)
     {
-        if(lv_screen_active() == screen){
-            if(currentBrightness>0){
-                currentBrightness-=1;
-            }
-        }else{
-            currentBrightness=FULL_BRIGHTNESS;
+        if(currentBrightness>0){
+            currentBrightness-=1;
         }
         Core2Brightness(currentBrightness);
     }
 
-    static void OnTimerStatic(lv_timer_t* data)
-    {
-        StandbyScreen* pThis = (StandbyScreen*)(lv_timer_get_user_data(data));
-        pThis->OnTimer();
-    }
   
     void Core2Brightness(uint8_t lvl) {
         // The backlight brightness is in steps of 25 in AXP192.cpp

@@ -1,34 +1,54 @@
+#pragma once
+
 #include <array>
 #include <esp_dsp.h>
-
-#define FFT_SIZE 256
-#define BUFFER_SAMPLES FFT_SIZE
-#define BUFFER_SHIFT 8
-#define SAMPLE_RATE 8192
-#define NUM_BUFFERS 3
-#define MAX_AMPLITUDE_SQUARED 65535
 
 class SoundInput
 {
   public:
+    static const int FFT_SIZE = 256;
+    static const int BUFFER_SAMPLES = FFT_SIZE;
+    static const int BUFFER_SHIFT = 8;
+    static const int SAMPLE_RATE = 8192;
+    static const int NUM_BUFFERS = 3;
+    static const int MAX_AMPLITUDE_SQUARED = 65535;
     typedef std::array<int16_t, FFT_SIZE> BufType;
     typedef std::array<int32_t, FFT_SIZE / 2> SpectrumBufType;
 
     void init()
     {
-        singleton=this;
+        lastLevel = 0;
+        smoothedLevel = -1;
+        singleton = this;
         nextWriteBuffer = 0;
         // setup fft
         dsps_fft2r_init_sc16(NULL, FFT_SIZE);
-        // create log10 table to give 
+        // create log10 table to give
         // 256 evenly spaced log10 points from
         // 0 to MAX_AMPLITUDE_SQUARED
-        float max_power=log10(MAX_AMPLITUDE_SQUARED);
-        for(int c=0;c<256;c++)
+        float max_power = log10(MAX_AMPLITUDE_SQUARED);
+        for (int c = 0; c < 256; c++)
         {
-            float power = (((float)c) *max_power)/256.0;
+            float power = (((float)c) * max_power) / 256.0;
             log10Table[c] = (int32_t)(pow10f(power));
-            //Serial.println(log10Table[c]);
+            float sVal = ((float)c) / 256.0;
+            sVal = sqrt(sVal);
+            sqrtTable[c] = (uint16_t)(sVal * 256.0);
+        }
+        int curPos = 0;
+        for (int c = 0; c < 6; c++)
+        {
+            int breakPoint = 3 + 5 * (c + 1);
+            while (curPos < breakPoint && curPos < 256)
+            {
+                spectrumSegmentIndices[curPos] = c;
+                curPos++;
+            }
+        }
+        while (curPos < 256)
+        {
+            spectrumSegmentIndices[curPos] = 5;
+            curPos++;
         }
         // create hann window for fft data
         float fWindow[FFT_SIZE];
@@ -49,7 +69,7 @@ class SoundInput
         M5.Mic.begin();
     }
 
-    SoundInput* GetSoundInput()
+    static SoundInput *GetSoundInput()
     {
         return singleton;
     }
@@ -97,7 +117,15 @@ class SoundInput
     {
         return lastLevel;
     }
-    SpectrumBufType getSpectrum();
+    const SpectrumBufType &getSpectrum()
+    {
+        return lastSpectrum;
+    }
+
+    const SpectrumBufType &getSpectrumSegmentIndices()
+    {
+        return spectrumSegmentIndices;
+    }
 
   protected:
     void calcAmplitude(BufType &inBuf)
@@ -114,15 +142,26 @@ class SoundInput
                 sum -= (int32_t)inBuf[c];
             }
         }
-        sum = sum >> BUFFER_SHIFT;
-        if (sum > 32767)
+        // 16 * actual value for more resolution
+        sum = sum >> (BUFFER_SHIFT - 4);
+        if (sum > 32767 * 32)
         {
-            Serial.println("Bad amplitude somehow");
-            sum = 32767;
+            sum = 32767 * 32;
         }
-        lastLevel = (int16_t)sum;
-        //Serial.print("!");
-        //Serial.println(lastLevel);
+        if (smoothedLevel == -1)
+        {
+            smoothedLevel = sum;
+        }
+        else
+        {
+            smoothedLevel = (smoothedLevel * 127 + sum) >> 7;
+        }
+        Serial.println(smoothedLevel);
+        lastLevel = sum>>2;
+//        lastLevel = (30 * sum) / (smoothedLevel + 1);
+        if (lastLevel > 255)
+            lastLevel = 255;
+        lastLevel = sqrtTable[lastLevel];
     }
     // do fft - n.b. this is in-place,
     // so do this *after* calculating amplitude
@@ -139,27 +178,21 @@ class SoundInput
         dsps_cplx2real_sc16_ansi(bufData, FFT_SIZE >> 1);
         // now calculate magnitudes from the (complex)
         // output spectrum
-        int16_t maxMag=-1;
-        int16_t maxPos=0;
         for (int c = 0; c < lastSpectrum.size(); c++)
         {
             int32_t sum1 = (int32_t)(bufData[c * 2]);
             int32_t sum2 = (int32_t)(bufData[c * 2 + 1]);
             sum1 *= sum1;
             sum2 *= sum2;
-            lastSpectrum[c] =lookupLog10(sum1+sum2);
-            if(lastSpectrum[c]>maxMag){
-                maxMag=lastSpectrum[c];
-                maxPos=c;
-            }
+            lastSpectrum[c] = lookupLog10(sum1 + sum2);
         }
     }
 
     int16_t lookupLog10(int32_t input)
     {
-        for(int16_t c=0;c<256;c++)
+        for (int16_t c = 0; c < 256; c++)
         {
-            if(input<log10Table[c])
+            if (input < log10Table[c])
             {
                 return c;
             }
@@ -171,10 +204,13 @@ class SoundInput
     int nextWriteBuffer;
 
     SpectrumBufType lastSpectrum;
-    int16_t lastLevel;
+    SpectrumBufType spectrumSegmentIndices;
+    int32_t lastLevel;
+    int32_t smoothedLevel;
     int16_t lastMaxFreq;
     BufType window;
-    std::array<int32_t,256> log10Table;
+    std::array<int32_t, 256> log10Table;
+    std::array<uint8_t, 256> sqrtTable;
 
-    inline static SoundInput* singleton=NULL;
+    inline static SoundInput *singleton = NULL;
 };

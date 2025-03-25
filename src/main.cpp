@@ -23,6 +23,20 @@ constexpr int32_t VER_RES = 240;
 lv_display_t *display;
 lv_indev_t *indev;
 
+void drawDebugLights()
+{
+    #ifdef TEST_NO_LIGHTS
+    LightOutput*lo = LightOutput::GetLightOutput();
+    int lednum=0;
+    CRGB* buffer = lo->getStripBuffer(0,&lednum);
+    M5.Display.pushImage<lgfx::v1::bgr888_t>(0, 0, 1, lednum, (lgfx::v1::bgr888_t *)buffer);
+    buffer = lo->getStripBuffer(1,&lednum);
+    M5.Display.pushImage<lgfx::v1::bgr888_t>(319, 0, 1, lednum, (lgfx::v1::bgr888_t *)buffer);
+
+    #endif
+
+}
+
 void my_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
     uint32_t w = (area->x2 - area->x1 + 1);
@@ -30,8 +44,10 @@ void my_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map
 
     lv_draw_sw_rgb565_swap(px_map, w * h);
     M5.Display.pushImageDMA<uint16_t>(area->x1, area->y1, w, h, (uint16_t *)px_map);
+    drawDebugLights();
     lv_disp_flush_ready(disp);
 }
+
 
 uint32_t my_tick_function()
 {
@@ -130,4 +146,5 @@ void loop()
     lv_task_handler();
     vTaskDelay(1);
     sound.doProcessing();
+    drawDebugLights();
 }
