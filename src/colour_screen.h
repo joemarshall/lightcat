@@ -14,7 +14,7 @@ class ColourScreen : public Screen
       h=0;
       s=0;
       v=255;
-      screenTimeout=60;
+      screenTimeout=120;
       screenDeadTime=0;
         vStep = 0;
         // #ifdef OUTPUT_COLOUR_PICKER_IMAGE
@@ -310,7 +310,7 @@ class ColourScreen : public Screen
         }
     }
 
-    static int h, s, v;
+    inline static int h, s, v;
 
     void showUpDown(bool bShow)
     {

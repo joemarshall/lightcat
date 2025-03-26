@@ -47,7 +47,7 @@ class DiscoScreen : public ColourScreen
         HandleEvent(audio_mode, LV_EVENT_ALL);
         HandleEvent(output_mode, LV_EVENT_ALL);
         scroll_timer = enableTimer(20);
-        screenTimeout=10;
+        screenTimeout=3600; // keep disco on for an hour before timing out
     }
 
   protected:
