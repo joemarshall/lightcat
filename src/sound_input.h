@@ -18,7 +18,7 @@ class SoundInput
     void init()
     {
         lastLevel = 0;
-        smoothedLevel = -1;
+        smoothedPeak = -1;
         singleton = this;
         nextWriteBuffer = 0;
         // setup fft
@@ -36,16 +36,20 @@ class SoundInput
             sqrtTable[c] = (uint16_t)(sVal * 256.0);
         }
         int curPos = 0;
+        int breakPoint = 0;
         for (int c = 0; c < 6; c++)
         {
-            int breakPoint = 3 + 5 * (c + 1);
-            while (curPos < breakPoint && curPos < 256)
+            breakPoint += 3 + 5 * (c + 1);
+            while (curPos < breakPoint && curPos < spectrumSegmentIndices.size())
             {
                 spectrumSegmentIndices[curPos] = c;
+                Serial.print(curPos);
+                Serial.print(":");
+                Serial.println(c);
                 curPos++;
             }
         }
-        while (curPos < 256)
+        while (curPos < spectrumSegmentIndices.size())
         {
             spectrumSegmentIndices[curPos] = 5;
             curPos++;
@@ -142,26 +146,43 @@ class SoundInput
                 sum -= (int32_t)inBuf[c];
             }
         }
-        // 16 * actual value for more resolution
-        sum = sum >> (BUFFER_SHIFT - 4);
-        if (sum > 32767 * 32)
+        sum = sum >> BUFFER_SHIFT;
+
+  //      int32_t sumH=sum>>8;
+  //      int32_t sumL= sum&0xff;
+ //       if(sumH>255)sumH=255;
+//        sum = (((int32_t)sqrtTable[sumH])<<8)|sumL;
+
+        if (smoothedPeak == -1)
         {
-            sum = 32767 * 32;
-        }
-        if (smoothedLevel == -1)
-        {
-            smoothedLevel = sum;
+            smoothedPeak = sum<<8;
         }
         else
         {
-            smoothedLevel = (smoothedLevel * 127 + sum) >> 7;
+            if((sum<<8)>smoothedPeak){
+                smoothedPeak = (smoothedPeak * 15 + (sum<<8)) >> 4;
+            }else{
+                smoothedPeak = (smoothedPeak *254)>>8;
+            }
         }
-        Serial.println(smoothedLevel);
-        lastLevel = sum>>2;
-//        lastLevel = (30 * sum) / (smoothedLevel + 1);
+        int32_t divisor=smoothedPeak>>8;
+        if(divisor==0)divisor=1;
+        lastLevel = (sum *255)/ divisor;
         if (lastLevel > 255)
             lastLevel = 255;
-        lastLevel = sqrtTable[lastLevel];
+        
+        //  Serial.print(sum);
+        //  Serial.print("!");
+        //  Serial.print(smoothedPeak>>8);
+        //  Serial.print(":");
+        //  Serial.println(smoothedPeak);
+
+
+        // Serial.print(",");
+        // Serial.println(lastLevel);
+
+
+
     }
     // do fft - n.b. this is in-place,
     // so do this *after* calculating amplitude
@@ -206,7 +227,7 @@ class SoundInput
     SpectrumBufType lastSpectrum;
     SpectrumBufType spectrumSegmentIndices;
     int32_t lastLevel;
-    int32_t smoothedLevel;
+    int32_t smoothedPeak;
     int16_t lastMaxFreq;
     BufType window;
     std::array<int32_t, 256> log10Table;

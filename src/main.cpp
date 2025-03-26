@@ -103,9 +103,12 @@ void init_screens()
     screens[0] = new StandbyScreen();
     screens[1] = new ColourScreen();
     screens[2] = new DiscoScreen();
-    screens[1]->SetNext(screens[0]);
+    screens[0]->SetNext(screens[1]);
+    screens[1]->SetPrev(screens[0]);
+    screens[1]->SetNext(screens[2]);
+    screens[2]->SetPrev(screens[1]);
     screens[2]->SetNext(screens[1]);
-    screens[2]->SetCurrent(false);
+    screens[0]->SetCurrent(false);
 }
 
 SoundInput sound;
@@ -119,7 +122,9 @@ void setup()
         ;
     Serial.println("Test");
 
-    M5.begin();
+    m5::M5Unified::config_t cfg;
+    cfg.output_power=false;
+    M5.begin(cfg);
     lv_init();
     lv_log_register_print_cb(my_log_cb);
 

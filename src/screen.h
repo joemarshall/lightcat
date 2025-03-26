@@ -19,6 +19,7 @@ class Screen
             screen = customScreen;
         }
         nextScreen = NULL;
+        prevScreen = NULL;
     }
 
     virtual ~Screen()
@@ -34,6 +35,12 @@ class Screen
     {
         nextScreen = next;
     }
+
+    void SetPrev(Screen *prev)
+    {
+        prevScreen = prev;
+    }
+
 
     void SetCurrent(bool fadeThis, int fadeTime = 500)
     {
@@ -112,6 +119,7 @@ class Screen
         }
     }
 
+    Screen *prevScreen;
     Screen *nextScreen;
     lv_obj_t *screen;
     int lastX, lastY;

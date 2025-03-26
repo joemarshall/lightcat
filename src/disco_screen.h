@@ -12,6 +12,7 @@ class DiscoScreen : public ColourScreen
   public:
     DiscoScreen()
     {
+        audioV = 0;
         LV_IMAGE_DECLARE(audiomode_amplitude);
         LV_IMAGE_DECLARE(audiomode_fft);
         LV_IMAGE_DECLARE(audiomode_off);
@@ -45,11 +46,8 @@ class DiscoScreen : public ColourScreen
 
         HandleEvent(audio_mode, LV_EVENT_ALL);
         HandleEvent(output_mode, LV_EVENT_ALL);
-#ifdef TEST_NO_LIGHTS
         scroll_timer = enableTimer(20);
-#else
-        scroll_timer = enableTimer(20, 1);
-#endif
+        screenTimeout=10;
     }
 
   protected:
@@ -66,6 +64,7 @@ class DiscoScreen : public ColourScreen
         }
         lv_image_set_src(audio_mode, audio_mode_images[cur_audio_mode]);
         lv_obj_align(audio_mode, LV_ALIGN_TOP_LEFT, 0, 0);
+        showUpDown(cur_audio_mode==0);
     }
 
     virtual void onTimer(int id)
@@ -85,8 +84,8 @@ class DiscoScreen : public ColourScreen
                 lo->scroll(!pressed);
                 break;
             case 1: // audio level only - pass it in
-                v = (si->getLevel());
-                lo->onColour(h, s, v, false);
+                audioV = (si->getLevel());
+                lo->onColour(h, s, audioV, false);
                 lo->scroll(false);
                 break;
             case 2: // auto colour and audio level
@@ -102,7 +101,7 @@ class DiscoScreen : public ColourScreen
     {
         LightOutput *lo = LightOutput::GetLightOutput();
         SoundInput *si = SoundInput::GetSoundInput();
-        const SoundInput::SpectrumBufType& lastSpectrum = si->getSpectrum();
+        const SoundInput::SpectrumBufType &lastSpectrum = si->getSpectrum();
         switch (cur_output_mode)
         {
         case 0: // constant
@@ -125,38 +124,39 @@ class DiscoScreen : public ColourScreen
                 sumMag += lastSpectrum[c];
             }
 
-
             if (SoundInput::FFT_SIZE == 256)
             {
-                h = maxPos<<1;
+                h = maxPos << 1;
             }
             else
             {
                 h = (maxPos * 512) / (SoundInput::FFT_SIZE);
             }
-            uint32_t avgMag = sumMag >> 7;
-            s = (uint8_t)((avgMag * 256) / (uint32_t)maxMag);
-            s = 255-s;
-            v = (si->getLevel());
+            // cycle hue so that we don't just get one colour
+            h=(h*6)&0xff;
+
+            uint32_t avgMag = sumMag <<1; // average * 256
+            if(maxMag<=0)maxMag=1;
+            avgMag = avgMag / maxMag;
+            avgMag = avgMag<<3; // multiply by 8
+            // i.e. if avg > max/32 it will output 255
+            if(avgMag<120){
+                avgMag=0;
+            }else{
+                avgMag=avgMag-120;
+            }
+
+
+            if (avgMag > 255)
+                avgMag = 255;
+            s = avgMag;
+            s = 255 - s;
+            audioV = (si->getLevel());
             // rotate - choose a colour based on fft and rotate it
             // same as 0
             // unless v is low in which case don't send a colour and fade instead
-            lo->onColour(h, s, v, true, true);
-            Serial.print("WOO ");
-            Serial.print(si->getLevel());
-            Serial.print("@");
-            Serial.print(maxPos);
-            Serial.print(":");
-            Serial.print(maxMag);
-            Serial.print("(");
-            Serial.print(h);
-            Serial.print(",");
-            Serial.print(s);
-            Serial.print(",");
-            Serial.print(v);
-            Serial.println(")");
-
-            lo->scroll((v < 30));
+            lo->onColour(h, s, audioV, true, true);
+            lo->scroll((audioV < 30));
         }
         break;
         case 1: // segmented - visualise fft on the sides
@@ -167,9 +167,9 @@ class DiscoScreen : public ColourScreen
             {
                 auto segmentIndices = si->getSpectrumSegmentIndices();
                 int32_t curLevel = si->getLevel();
-                std::array<int, 6> segmentH;
-                std::array<int, 6> segmentS;
-                std::array<int, 6> segmentV;
+                std::array<int32_t, 6> segmentH;
+                std::array<int32_t, 6> segmentS;
+                std::array<int32_t, 6> segmentV;
                 int32_t maxMax = 0;
                 int spectrumPos = 1;
                 for (int segment = 0; segment < 6; segment++)
@@ -190,30 +190,65 @@ class DiscoScreen : public ColourScreen
                         segEnd++;
                         spectrumPos++;
                     }
-                    if(segEnd!=segStart){
+                    if (segEnd != segStart)
+                    {
                         int32_t segAvg = segSum / (segEnd - segStart);
                         segmentH[segment] = (255 * (segMaxPos - segStart)) / (segEnd - segStart);
-                        segmentS[segment] = (255 * segMax) / segAvg;
-                        segmentV[segment] = segMax;
+                        if (segMax < 40)
+                        {
+                            segmentS[segment] = 0;
+                            segmentV[segment] = 0;
+                        }
+                        else
+                        {
+                            segmentS[segment] = (255 * segAvg) / segMax;
+                            segmentV[segment] = segMax;
+                        }
                         if (segMax > maxMax)
                             maxMax = segMax;
-                    }else{
+
+                        // Serial.print(segment);
+                        // Serial.print(":");
+                        // Serial.print(si->getLevel());
+                        // Serial.print("Max:");
+                        // Serial.print(segMax);
+                        // Serial.print("@");
+                        // Serial.print(segMaxPos);
+                        // Serial.print(",avg:");
+                        // Serial.print(segAvg);
+                        // Serial.print("(");
+                        // Serial.print(segmentH[segment]);
+                        // Serial.print(",");
+                        // Serial.print(segmentS[segment]);
+                        // Serial.print(",");
+                        // Serial.print(segmentV[segment]);
+                        // Serial.println(")");
+                    }
+                    else
+                    {
                         Serial.print("Zero segment");
                         Serial.println(segment);
                     }
                 }
-                if (maxMax > 0)
+                if (curLevel < 30)
                 {
                     for (int segment = 0; segment < 6; segment++)
                     {
-                        segmentV[segment] = (curLevel * segmentV[segment]) / maxMax;
+                        segmentV[segment] = 0;
                     }
                 }
-                if (curLevel >= 30)
+                else
                 {
-                    lo->onMultipleColours(segmentH, segmentS, segmentV);
+                    if (maxMax > 0)
+                    {
+                        for (int segment = 0; segment < 6; segment++)
+                        {
+                            segmentV[segment] = (curLevel * segmentV[segment]) / maxMax;
+                        }
+                    }
                 }
-                lo->scroll(curLevel < 30);
+                lo->onMultipleColours(segmentH, segmentS, segmentV);
+                lo->scroll(true);
             }
             break;
         }
@@ -224,8 +259,14 @@ class DiscoScreen : public ColourScreen
         LightOutput *lo = LightOutput::GetLightOutput();
         if (lo != NULL)
         {
-            lo->onColour(h, s, v, true, onTouch);
-            Serial.println(cur_output_mode);
+            if (cur_audio_mode != 0)
+            {
+                lo->onColour(h, s, audioV, true, onTouch);
+            }
+            else
+            {
+                lo->onColour(h, s, v, true, onTouch);
+            }
             switch (cur_output_mode)
             {
             default:
@@ -283,16 +324,12 @@ class DiscoScreen : public ColourScreen
 
     virtual void OnEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
     {
-        if (code == LV_EVENT_HIT_TEST)
+        if (code == LV_EVENT_HIT_TEST && (target==output_mode|| target==audio_mode))
         {
             auto info = lv_event_get_hit_test_info(e);
             auto obj = lv_event_get_target_obj(e);
             int x = info->point->x - lv_obj_get_x(obj);
             int y = info->point->y - lv_obj_get_y(obj);
-            Serial.print(x);
-            Serial.print(":");
-            Serial.print(y);
-            Serial.print("=");
             info->res = true;
             const lv_img_dsc_t *img = (const lv_img_dsc_t *)lv_image_get_src(obj);
             if (x < 0 || x >= img->header.w || y < 0 || y >= img->header.h)
@@ -302,7 +339,6 @@ class DiscoScreen : public ColourScreen
             else
             {
                 const uint8_t *mask = &img->data[img->header.h * img->header.stride];
-                Serial.println(mask[x + y * img->header.w]);
                 info->res = mask[x + y * (img->header.stride >> 1)] > 0x7f;
             }
         }
@@ -335,6 +371,8 @@ class DiscoScreen : public ColourScreen
 
     int cur_audio_mode;
     int cur_output_mode;
+
+    uint8_t audioV;
 
     int scroll_timer;
 };

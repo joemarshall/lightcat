@@ -2,9 +2,10 @@ import subprocess,sys
 from pathlib import Path
 
 Import("env")
-
-env.Execute("$PYTHONEXE -m pip install pypng lz4")
-
+try:
+    import png,lz4
+except:    
+    env.Execute("$PYTHONEXE -m pip install pypng lz4")
 
 args=[sys.executable,"LVGLImage.py","images","--ofmt","C","--cf","RGB565A8","-o","src/images"]
 print(args)

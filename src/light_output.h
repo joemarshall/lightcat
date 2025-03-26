@@ -83,27 +83,28 @@ class LightOutput
     {
         if(currentEffect== EFFECT_BLOCKS){
             // set each block individually
+            int count=0;
             for(int b=0;b<6;b++){
                 for(int c=points[b];c!=points[b+1];c=((c+1)%NUM_LEDS))
                 {
                     light_buffer[c]=CHSV(h[b],s[b],v[b]);
+                    count++;
                 }
             }
         }else if(currentEffect==EFFECT_SWIRL){
             // inject into the swirl
             // first one goes to position 0
-            light_buffer[0]=CHSV(h[0],s[0],v[0]);
-            // next to position N-1, so that it starts the other side of the swirl
-            light_buffer[NUM_LEDS-1] = CHSV(h[1],s[1],v[1]);
-            int offset = STRIP1_SPLIT_POINT/2 +1;
-            // then to corners
-            light_buffer[offset] =CHSV(h[2],s[2],v[2]);
-            light_buffer[NUM_LEDS - offset] =CHSV(h[3],s[3],v[3]);
-            // then to half way down each side
-            offset = offset + (NUM_LED1- STRIP1_SPLIT_POINT)/2;
-            light_buffer[offset] =CHSV(h[4],s[4],v[4]);
-            light_buffer[NUM_LEDS - offset] =CHSV(h[5],s[5],v[5]);
+            int offset1 = STRIP1_SPLIT_POINT/2 +1;
+            int offset2 = offset1 + (NUM_LED1- STRIP1_SPLIT_POINT)/2;
+            const int inject_points[6] = {0,NUM_LEDS-1,offset1,NUM_LEDS-offset1,offset2,NUM_LEDS-offset2};
+            for(int c=0;c<6;c++){
+                // only inject if there is a loud enough signal
+                if(v[c]>30){
+                    light_buffer[inject_points[c]]=CHSV(h[c],s[c],v[c]);
+                }
+            }
         }
+        updateRawBuffer();
     }
     // set current colour with level==-1 if no colour selected
     // for spin/whirl, where it will output blank space
@@ -215,7 +216,7 @@ class LightOutput
             break;
         case EFFECT_BLOCKS:
             // only switch block colours on touch
-            // but do update v for everything at once
+            // but do update for everything at once
 
             break;
         case EFFECT_SPIN:
@@ -290,17 +291,12 @@ class LightOutput
     {
 #ifdef TEST_NO_LIGHTS
         for (int c = 0; c < NUM_LED1; c++)
-        {
-            CRGB col1;
-            hsv2rgb_rainbow(light_buffer[c], col1);
-
-            strip1Buffer[c]=col1;
+        {        
+            strip1Buffer[c]=light_buffer[c];
         }
         for (int c = NUM_LED1; c < NUM_LEDS; c++)
-        {
-            CRGB col1;
-            hsv2rgb_rainbow(light_buffer[c], col1);
-            strip2Buffer[c-NUM_LED1]=col1;
+        {         
+            strip2Buffer[c-NUM_LED1]=light_buffer[c];
         }
         return;
 #endif

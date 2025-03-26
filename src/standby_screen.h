@@ -60,9 +60,8 @@ class StandbyScreen : public Screen
         if(v==2300){
             v=0;
         }
-        // Set the LCD backlight voltage. (magic number = 3)
+        // Set the LCD backlight voltage. 
         M5.Power.Axp192.setDCDC3(v);
-        Serial.println(lvl);
       }
   
     lv_obj_t* background;
