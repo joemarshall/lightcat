@@ -2,12 +2,11 @@
 
 #include <FastLED.h>
 
-#define TEST_NO_LIGHTS
-
 class LightOutput
 {
   public:
-#ifdef TEST_NO_LIGHTS
+    bool hasLights;
+
     static const int NUM_LED1 = 180;
     static const int NUM_LED2 = 180;
 
@@ -16,37 +15,28 @@ class LightOutput
     // STRIP2 = long then short
     static const int STRIP1_SPLIT_POINT = 60;
     static const int STRIP2_SPLIT_POINT = 120;
-#else
-    static const int NUM_LED1 = 60 * 3;
-    static const int NUM_LED2 = 60 * 3;
-    // LED count of first strip of
-    // each one - STRIP1 = short then long
-    // STRIP2 = long then short
-    static const int STRIP1_SPLIT_POINT = 60;
-    static const int STRIP2_SPLIT_POINT = 120;
-#endif
     static const int NUM_LEDS = (NUM_LED1 + NUM_LED2);
     static const int STRIP1_PIN = 32;
     static const int STRIP2_PIN = 33;
 
-    static const int point1 = NUM_LEDS-STRIP1_SPLIT_POINT/2;
-    static const int point2 = (point1+STRIP1_SPLIT_POINT)%NUM_LEDS;
-    static const int point3 = (point2+ (NUM_LED1 - STRIP1_SPLIT_POINT)/2)%NUM_LEDS;
-    static const int point4 = (NUM_LED1+point1)%NUM_LEDS;
-    static const int point5 = (point4 + (NUM_LED2-STRIP2_SPLIT_POINT))%NUM_LEDS; 
-    static const int point6 = (point5 + STRIP2_SPLIT_POINT/2)%NUM_LEDS;
-    static const int point7 = (point1%NUM_LEDS);
-    static constexpr int points[7] = {point1,point2,point3,point4,point5,point6,point7};
+    static const int point1 = NUM_LEDS - STRIP1_SPLIT_POINT / 2;
+    static const int point2 = (point1 + STRIP1_SPLIT_POINT) % NUM_LEDS;
+    static const int point3 = (point2 + (NUM_LED1 - STRIP1_SPLIT_POINT) / 2) % NUM_LEDS;
+    static const int point4 = (NUM_LED1 + point1) % NUM_LEDS;
+    static const int point5 = (point4 + (NUM_LED2 - STRIP2_SPLIT_POINT)) % NUM_LEDS;
+    static const int point6 = (point5 + STRIP2_SPLIT_POINT / 2) % NUM_LEDS;
+    static const int point7 = (point1 % NUM_LEDS);
+    static constexpr int points[7] = {point1, point2, point3, point4, point5, point6, point7};
 
-
-
-    void init()
+    void init(bool inHasLights)
     {
-        nextBlockPos=0;
-#ifndef TEST_NO_LIGHTS
-        FastLED.addLeds<WS2813, STRIP1_PIN>(strip1Buffer, NUM_LED1);
-        FastLED.addLeds<WS2813, STRIP2_PIN>(strip2Buffer, NUM_LED2);
-#endif
+        nextBlockPos = 0;
+        hasLights = inHasLights;
+        if (hasLights)
+        {
+            FastLED.addLeds<WS2813, STRIP1_PIN>(strip1Buffer, NUM_LED1);
+            FastLED.addLeds<WS2813, STRIP2_PIN>(strip2Buffer, NUM_LED2);
+        }
         singleton = this;
     }
 
@@ -55,22 +45,27 @@ class LightOutput
         return singleton;
     }
 
-    const uint8_t GAMMA_TABLE[256] = {
-        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,   1,   1,   1,   1,
-        1,   1,   1,   1,   1,   2,   2,   2,   2,   2,   2,   2,   2,   3,   3,   3,   3,   3,
-        3,   3,   4,   4,   4,   4,   4,   5,   5,   5,   5,   6,   6,   6,   6,   7,   7,   7,
-        7,   8,   8,   8,   9,   9,   9,   10,  10,  10,  11,  11,  11,  12,  12,  13,  13,  13,
-        14,  14,  15,  15,  16,  16,  17,  17,  18,  18,  19,  19,  20,  20,  21,  21,  22,  22,
-        23,  24,  24,  25,  25,  26,  27,  27,  28,  29,  29,  30,  31,  32,  32,  33,  34,  35,
-        35,  36,  37,  38,  39,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  50,
-        51,  52,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  66,  67,  68,  69,  70,
-        72,  73,  74,  75,  77,  78,  79,  81,  82,  83,  85,  86,  87,  89,  90,  92,  93,  95,
-        96,  98,  99,  101, 102, 104, 105, 107, 109, 110, 112, 114, 115, 117, 119, 120, 122, 124,
-        126, 127, 129, 131, 133, 135, 137, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158,
-        160, 162, 164, 167, 169, 171, 173, 175, 177, 180, 182, 184, 186, 189, 191, 193, 196, 198,
-        200, 203, 205, 208, 210, 213, 215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244,
-        247, 249, 252, 255};
+// Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
+// gamma = 2.80 steps = 256 range = 0-70
+// n.b. this also dims the LEDs to approx 50% of full brightness (1/3 of full current)
+const uint8_t GAMMA_TABLE[256] = {
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,
+    1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+    1,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   3,   3,
+    3,   3,   3,   3,   3,   3,   3,   3,   4,   4,   4,   4,   4,   4,   4,   4,
+    5,   5,   5,   5,   5,   5,   5,   6,   6,   6,   6,   6,   6,   6,   7,   7,
+    7,   7,   7,   8,   8,   8,   8,   8,   8,   9,   9,   9,   9,  10,  10,  10,
+   10,  10,  11,  11,  11,  11,  12,  12,  12,  12,  13,  13,  13,  13,  14,  14,
+   14,  14,  15,  15,  15,  16,  16,  16,  16,  17,  17,  17,  18,  18,  18,  19,
+   19,  19,  20,  20,  20,  21,  21,  21,  22,  22,  22,  23,  23,  24,  24,  24,
+   25,  25,  26,  26,  26,  27,  27,  28,  28,  29,  29,  29,  30,  30,  31,  31,
+   32,  32,  33,  33,  34,  34,  34,  35,  35,  36,  36,  37,  37,  38,  39,  39,
+   40,  40,  41,  41,  42,  42,  43,  43,  44,  45,  45,  46,  46,  47,  47,  48,
+   49,  49,  50,  51,  51,  52,  52,  53,  54,  54,  55,  56,  56,  57,  58,  58,
+   59,  60,  60,  61,  62,  63,  63,  64,  65,  65,  66,  67,  68,  68,  69,  70,
+ };
 
     enum EffectType
     {
@@ -79,28 +74,35 @@ class LightOutput
         EFFECT_SWIRL,    // colour and light zoom out in both directions on the LEDs
         EFFECT_BLOCKS,   // colour and light on blocks - each colour sets another block
     };
-    void onMultipleColours(std::array<int,6> &h,std::array<int,6> &s,std::array<int,6> &v)
+    void onMultipleColours(std::array<int, 6> &h, std::array<int, 6> &s, std::array<int, 6> &v)
     {
-        if(currentEffect== EFFECT_BLOCKS){
+        if (currentEffect == EFFECT_BLOCKS)
+        {
             // set each block individually
-            int count=0;
-            for(int b=0;b<6;b++){
-                for(int c=points[b];c!=points[b+1];c=((c+1)%NUM_LEDS))
+            int count = 0;
+            for (int b = 0; b < 6; b++)
+            {
+                for (int c = points[b]; c != points[b + 1]; c = ((c + 1) % NUM_LEDS))
                 {
-                    light_buffer[c]=CHSV(h[b],s[b],v[b]);
+                    light_buffer[c] = CHSV(h[b], s[b], v[b]);
                     count++;
                 }
             }
-        }else if(currentEffect==EFFECT_SWIRL){
+        }
+        else if (currentEffect == EFFECT_SWIRL)
+        {
             // inject into the swirl
             // first one goes to position 0
-            int offset1 = STRIP1_SPLIT_POINT/2 +1;
-            int offset2 = offset1 + (NUM_LED1- STRIP1_SPLIT_POINT)/2;
-            const int inject_points[6] = {0,NUM_LEDS-1,offset1,NUM_LEDS-offset1,offset2,NUM_LEDS-offset2};
-            for(int c=0;c<6;c++){
+            int offset1 = STRIP1_SPLIT_POINT / 2 + 1;
+            int offset2 = offset1 + (NUM_LED1 - STRIP1_SPLIT_POINT) / 2;
+            const int inject_points[6] = {0,       NUM_LEDS - 1,      offset1, NUM_LEDS - offset1,
+                                          offset2, NUM_LEDS - offset2};
+            for (int c = 0; c < 6; c++)
+            {
                 // only inject if there is a loud enough signal
-                if(v[c]>30){
-                    light_buffer[inject_points[c]]=CHSV(h[c],s[c],v[c]);
+                if (v[c] > 30)
+                {
+                    light_buffer[inject_points[c]] = CHSV(h[c], s[c], v[c]);
                 }
             }
         }
@@ -108,12 +110,13 @@ class LightOutput
     }
     // set current colour with level==-1 if no colour selected
     // for spin/whirl, where it will output blank space
-    void onColour(int h, int s, int v,bool updateBuffer=true,bool onTouch=false)
+    void onColour(int h, int s, int v, bool updateBuffer = true, bool onTouch = false)
     {
         lastH = h;
         lastS = s;
         lastV = v;
-        if(!updateBuffer){
+        if (!updateBuffer)
+        {
             return;
         }
         CHSV hsv = CHSV(h, s, v);
@@ -159,26 +162,33 @@ class LightOutput
             {
                 light_buffer[d] = light_buffer[c];
             }
-        }else if (currentEffect == EFFECT_SPIN || currentEffect == EFFECT_SWIRL)
+        }
+        else if (currentEffect == EFFECT_SPIN || currentEffect == EFFECT_SWIRL)
         {
             // set the first value to the current input colour
             light_buffer[0].h = h;
             light_buffer[0].s = s;
             light_buffer[0].v = v;
-        }else if(currentEffect== EFFECT_BLOCKS){
-            if(onTouch){
+        }
+        else if (currentEffect == EFFECT_BLOCKS)
+        {
+            if (onTouch)
+            {
                 nextBlockPos++;
             }
-            if(nextBlockPos>=6)nextBlockPos=0;
+            if (nextBlockPos >= 6)
+                nextBlockPos = 0;
             // change colour of only the selected block
             // but change value of everything
-            for(int c=points[nextBlockPos];c!=points[nextBlockPos+1];c=((c+1)%NUM_LEDS))
+            for (int c = points[nextBlockPos]; c != points[nextBlockPos + 1];
+                 c = ((c + 1) % NUM_LEDS))
             {
-                light_buffer[c].h=h;
-                light_buffer[c].s=s;
+                light_buffer[c].h = h;
+                light_buffer[c].s = s;
             }
-            for(int c=0;c<NUM_LEDS;c++){
-                light_buffer[c].v=v;
+            for (int c = 0; c < NUM_LEDS; c++)
+            {
+                light_buffer[c].v = v;
             }
         }
 
@@ -225,7 +235,7 @@ class LightOutput
                 // no current colour, loop colours round
                 CHSV endCol = light_buffer[NUM_LEDS - 1];
                 memmove(&light_buffer[1], &light_buffer[0], (NUM_LEDS - 1) * sizeof(CHSV));
-                endCol.v=fadeAtEnd(endCol.v);
+                endCol.v = fadeAtEnd(endCol.v);
                 light_buffer[0] = endCol;
                 // don't update colour, because we've spun instead
             }
@@ -266,13 +276,16 @@ class LightOutput
         }
     }
 
-    CRGB* getStripBuffer(uint32_t stripNum,int *count)
+    CRGB *getStripBuffer(uint32_t stripNum, int *count)
     {
-        if(stripNum==0){
-            *count=NUM_LED1;
+        if (stripNum == 0)
+        {
+            *count = NUM_LED1;
             return strip1Buffer;
-        }else if(stripNum==1){
-            *count=NUM_LED2;
+        }
+        else if (stripNum == 1)
+        {
+            *count = NUM_LED2;
             return strip2Buffer;
         }
         return NULL;
@@ -289,17 +302,6 @@ class LightOutput
 
     void updateRawBuffer()
     {
-#ifdef TEST_NO_LIGHTS
-        for (int c = 0; c < NUM_LED1; c++)
-        {        
-            strip1Buffer[c]=light_buffer[c];
-        }
-        for (int c = NUM_LED1; c < NUM_LEDS; c++)
-        {         
-            strip2Buffer[c-NUM_LED1]=light_buffer[c];
-        }
-        return;
-#endif
 
         // LEDs are in 2 strips, split into 3 bars each
         CRGB *barStarts[3] = {
@@ -344,7 +346,7 @@ class LightOutput
     uint8_t lastH, lastS, lastV;
     EffectType currentEffect;
     // the logical light buffer (ordered by logical position round the
-    // circle)
+    // circle), as linear HSV
     CHSV light_buffer[NUM_LEDS];
 
     // fastLED light buffer ordered by electrical position on the two strings

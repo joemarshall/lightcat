@@ -25,7 +25,6 @@ lv_indev_t *indev;
 
 void drawDebugLights()
 {
-    #ifdef TEST_NO_LIGHTS
     LightOutput*lo = LightOutput::GetLightOutput();
     int lednum=0;
     CRGB* buffer = lo->getStripBuffer(0,&lednum);
@@ -33,7 +32,6 @@ void drawDebugLights()
     buffer = lo->getStripBuffer(1,&lednum);
     M5.Display.pushImage<lgfx::v1::bgr888_t>(319, 0, 1, lednum, (lgfx::v1::bgr888_t *)buffer);
 
-    #endif
 
 }
 
@@ -125,6 +123,9 @@ void setup()
     m5::M5Unified::config_t cfg;
     cfg.output_power=false;
     M5.begin(cfg);
+    Serial.print("VBUS:");
+    bool hasLights = M5.Power.Axp192.isVBUS()==1;
+    Serial.println(hasLights);
     lv_init();
     lv_log_register_print_cb(my_log_cb);
 
@@ -143,7 +144,7 @@ void setup()
 
     init_screens();
     sound.init();
-    light.init();
+    light.init(hasLights);
 }
 
 void loop()
@@ -151,5 +152,7 @@ void loop()
     lv_task_handler();
     vTaskDelay(1);
     sound.doProcessing();
-    drawDebugLights();
+    if(!light.hasLights){
+        drawDebugLights();
+    }
 }

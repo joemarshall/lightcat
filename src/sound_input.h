@@ -43,9 +43,9 @@ class SoundInput
             while (curPos < breakPoint && curPos < spectrumSegmentIndices.size())
             {
                 spectrumSegmentIndices[curPos] = c;
-                Serial.print(curPos);
-                Serial.print(":");
-                Serial.println(c);
+//                Serial.print(curPos);
+//                Serial.print(":");
+//                Serial.println(c);
                 curPos++;
             }
         }
