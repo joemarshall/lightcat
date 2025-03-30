@@ -34,10 +34,21 @@ class LightOutput
         hasLights = inHasLights;
         if (hasLights)
         {
-            FastLED.addLeds<WS2813, STRIP1_PIN>(strip1Buffer, NUM_LED1);
-            FastLED.addLeds<WS2813, STRIP2_PIN>(strip2Buffer, NUM_LED2);
+            FastLED.addLeds<WS2813, STRIP1_PIN, BRG>(strip1Buffer, NUM_LED1);
+            FastLED.addLeds<WS2813, STRIP2_PIN, BRG>(strip2Buffer, NUM_LED2);
         }
         singleton = this;
+        globalFade=255;
+    }
+
+    void setGlobalFade(int val)
+    {
+        globalFade=val;
+        updateRawBuffer();
+    }
+
+    int getGlobalFade(){
+        return globalFade;
     }
 
     static LightOutput *GetLightOutput()
@@ -45,27 +56,23 @@ class LightOutput
         return singleton;
     }
 
-// Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
-// gamma = 2.80 steps = 256 range = 0-70
-// n.b. this also dims the LEDs to approx 50% of full brightness (1/3 of full current)
-const uint8_t GAMMA_TABLE[256] = {
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1,   1,   1,   1,
-    1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
-    1,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   3,   3,
-    3,   3,   3,   3,   3,   3,   3,   3,   4,   4,   4,   4,   4,   4,   4,   4,
-    5,   5,   5,   5,   5,   5,   5,   6,   6,   6,   6,   6,   6,   6,   7,   7,
-    7,   7,   7,   8,   8,   8,   8,   8,   8,   9,   9,   9,   9,  10,  10,  10,
-   10,  10,  11,  11,  11,  11,  12,  12,  12,  12,  13,  13,  13,  13,  14,  14,
-   14,  14,  15,  15,  15,  16,  16,  16,  16,  17,  17,  17,  18,  18,  18,  19,
-   19,  19,  20,  20,  20,  21,  21,  21,  22,  22,  22,  23,  23,  24,  24,  24,
-   25,  25,  26,  26,  26,  27,  27,  28,  28,  29,  29,  29,  30,  30,  31,  31,
-   32,  32,  33,  33,  34,  34,  34,  35,  35,  36,  36,  37,  37,  38,  39,  39,
-   40,  40,  41,  41,  42,  42,  43,  43,  44,  45,  45,  46,  46,  47,  47,  48,
-   49,  49,  50,  51,  51,  52,  52,  53,  54,  54,  55,  56,  56,  57,  58,  58,
-   59,  60,  60,  61,  62,  63,  63,  64,  65,  65,  66,  67,  68,  68,  69,  70,
- };
+    // Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
+    // gamma = 2.80 steps = 256 range = 0-70
+    // n.b. this also dims the LEDs to approx 50% of full brightness (1/3 of full current)
+    const uint8_t GAMMA_TABLE[256] = {
+        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+        1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,
+        2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+        4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,
+        7,  7,  7,  7,  7,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  10, 10, 10, 10, 10, 11, 11,
+        11, 11, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 16, 16, 16, 16, 17,
+        17, 17, 18, 18, 18, 19, 19, 19, 20, 20, 20, 21, 21, 21, 22, 22, 22, 23, 23, 24, 24, 24,
+        25, 25, 26, 26, 26, 27, 27, 28, 28, 29, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34,
+        34, 35, 35, 36, 36, 37, 37, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 45, 45, 46,
+        46, 47, 47, 48, 49, 49, 50, 51, 51, 52, 52, 53, 54, 54, 55, 56, 56, 57, 58, 58, 59, 60,
+        60, 61, 62, 63, 63, 64, 65, 65, 66, 67, 68, 68, 69, 70,
+    };
 
     enum EffectType
     {
@@ -123,21 +130,33 @@ const uint8_t GAMMA_TABLE[256] = {
         if (currentEffect == EFFECT_CONSTANT && v != -1)
         {
             // constant -
-            //   level=128 = max
-            //   when level<32, fill first 6th of each end of the strip
-            //   at 96, fill all of strip
+            //   level=255 = max
+            //   when level<64, fill first 6th of each end of the strip
+            //   at 192, fill all of strip
             int startPos = NUM_LEDS / 12;
             int endPos = NUM_LEDS / 12;
-            if (v > 32 && v < 96)
+            if (v > 64 && v < 192)
             {
-                endPos = (v - 32) * ((NUM_LEDS / 2) - endPos);
-                endPos >>= 6; // divide by 64
+                // at 64, startpos = NUM_LEDS/12
+                // at 192, startPos = NUM_LEDS/2
+                int vOffset=v-64;
+                startPos = (NUM_LEDS/2)*vOffset+ (NUM_LEDS/12)*(128-vOffset);
+                startPos>>=7; // divide by 128
+                vOffset = vOffset*2;
+                if(vOffset>128)vOffset=128;
+                endPos = (NUM_LEDS/2)*vOffset+ (NUM_LEDS/12)*(128-vOffset);
+                endPos>>=7;
             }
-            else if (v >= 96)
+            else if (v >= 192)
             {
+                startPos= NUM_LEDS/2;
                 endPos = NUM_LEDS / 2;
             }
-
+            Serial.print(v);
+            Serial.print(":");
+            Serial.print(startPos);
+            Serial.print(",");
+            Serial.println(endPos);
             for (int c = 0; c < startPos; c++)
             {
                 light_buffer[c].h = h;
@@ -276,16 +295,18 @@ const uint8_t GAMMA_TABLE[256] = {
         }
     }
 
-    CRGB *getStripBuffer(uint32_t stripNum, int *count)
+    CRGB *getStripBuffer(uint32_t stripNum, int *count, int *splitPoint)
     {
         if (stripNum == 0)
         {
             *count = NUM_LED1;
+            *splitPoint = STRIP1_SPLIT_POINT;
             return strip1Buffer;
         }
         else if (stripNum == 1)
         {
             *count = NUM_LED2;
+            *splitPoint = STRIP2_SPLIT_POINT;
             return strip2Buffer;
         }
         return NULL;
@@ -294,6 +315,10 @@ const uint8_t GAMMA_TABLE[256] = {
   protected:
     inline CRGB applyGamma(CRGB val)
     {
+        if(globalFade<255)
+        {
+            val.fadeLightBy(255-globalFade);
+        }
         val.r = GAMMA_TABLE[val.r];
         val.g = GAMMA_TABLE[val.g];
         val.b = GAMMA_TABLE[val.b];
@@ -307,10 +332,10 @@ const uint8_t GAMMA_TABLE[256] = {
         CRGB *barStarts[3] = {
             &strip1Buffer[STRIP1_SPLIT_POINT / 2], // from half way along 1st bar
             &strip2Buffer[0],                      // all of strip2 reversed
-            &strip1Buffer[0],                      // 1st half of last bar, reversed
+            &strip1Buffer[0],                      // 1st half of last bar, correct way
         };
         int barCounts[3] = {NUM_LED1 - (STRIP1_SPLIT_POINT / 2), -NUM_LED2,
-                            -(STRIP1_SPLIT_POINT / 2)};
+                            (STRIP1_SPLIT_POINT / 2)};
 
         int inPos = 0;
         for (int c = 0; c < 3; c++)
@@ -339,8 +364,26 @@ const uint8_t GAMMA_TABLE[256] = {
                 }
             }
         }
+        // Serial.println("Light ordering");
+        // for (int c = 0; c < NUM_LED1; c++)
+        // {
+        //     Serial.print("1:");
+        //     Serial.print(c);
+        //     Serial.print(":");
+        //     Serial.println(strip1Buffer[c].r | (strip1Buffer[c].g) << 8);
+        // }
+        // for (int c = 0; c < NUM_LED2; c++)
+        // {
+        //     Serial.print("2:");
+        //     Serial.print(c);
+        //     Serial.print(":");
+        //     Serial.println(strip2Buffer[c].r | (strip2Buffer[c].g) << 8);
+        // }
         // show the LEDs
-        FastLED.show();
+        if (hasLights)
+        {
+            FastLED.show();
+        }
     }
 
     uint8_t lastH, lastS, lastV;
@@ -357,4 +400,5 @@ const uint8_t GAMMA_TABLE[256] = {
     inline static LightOutput *singleton;
 
     int nextBlockPos;
+    int globalFade;
 };

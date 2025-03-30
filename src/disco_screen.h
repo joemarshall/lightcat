@@ -86,7 +86,7 @@ class DiscoScreen : public ColourScreen
             case 1: // audio level only - pass it in
                 audioV = (si->getLevel());
                 lo->onColour(h, s, audioV, false);
-                lo->scroll(false);
+                lo->scroll(audioV<30);
                 break;
             case 2: // auto colour and audio level
                 // handle differently depending on

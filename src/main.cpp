@@ -7,13 +7,11 @@
 #include <esp_timer.h>
 #include <lvgl.h>
 
-
 #include "colour_screen.h"
 #include "disco_screen.h"
 #include "light_output.h"
 #include "sound_input.h"
 #include "standby_screen.h"
-
 
 std::array<Screen *, 3> screens;
 
@@ -23,16 +21,55 @@ constexpr int32_t VER_RES = 240;
 lv_display_t *display;
 lv_indev_t *indev;
 
+CRGB leftSideDebug[240];
+CRGB rightSideDebug[240];
+CRGB topSideDebug[320];
+CRGB bottomSideDebug[320];
+
+CRGB unfade(CRGB &inVal)
+{
+    return CRGB(inVal.r * 3, inVal.g * 3, inVal.b * 3);
+}
+
 void drawDebugLights()
 {
-    LightOutput*lo = LightOutput::GetLightOutput();
-    int lednum=0;
-    CRGB* buffer = lo->getStripBuffer(0,&lednum);
-    M5.Display.pushImage<lgfx::v1::bgr888_t>(0, 0, 1, lednum, (lgfx::v1::bgr888_t *)buffer);
-    buffer = lo->getStripBuffer(1,&lednum);
-    M5.Display.pushImage<lgfx::v1::bgr888_t>(319, 0, 1, lednum, (lgfx::v1::bgr888_t *)buffer);
+    LightOutput *lo = LightOutput::GetLightOutput();
+    int splitPoint = 0;
+    int ledNum = 0;
+    CRGB *buffer = lo->getStripBuffer(0, &ledNum, &splitPoint);
+    int x = 0;
+    int y = 100;
+    int w = splitPoint;
+    int h = ledNum - splitPoint;
 
+    // first one goes top of screen to left
+    for (int c = 0; c < splitPoint; c++)
+    {
+        topSideDebug[splitPoint - c - 1] = unfade(buffer[c]);
+    }
+    for (int c = splitPoint; c < ledNum; c++)
+    {
+        leftSideDebug[c - splitPoint] = unfade(buffer[c]);
+    }
+    M5.Display.pushImage<lgfx::v1::bgr888_t>(x, y, splitPoint, 1,
+                                             (lgfx::v1::bgr888_t *)topSideDebug);
+    M5.Display.pushImage<lgfx::v1::bgr888_t>(x + 1, y, 1, ledNum - splitPoint,
+                                             (lgfx::v1::bgr888_t *)leftSideDebug);
 
+    buffer = lo->getStripBuffer(1, &ledNum, &splitPoint);
+
+    for (int c = 0; c < splitPoint; c++)
+    {
+        rightSideDebug[c] = unfade(buffer[c]);
+    }
+    for (int c = splitPoint; c < ledNum; c++)
+    {
+        bottomSideDebug[ledNum - c - 1] = unfade(buffer[c]);
+    }
+    M5.Display.pushImage<lgfx::v1::bgr888_t>(x + w, y, 1, splitPoint,
+                                             (lgfx::v1::bgr888_t *)rightSideDebug);
+    M5.Display.pushImage<lgfx::v1::bgr888_t>(x, y + h, ledNum - splitPoint, 1,
+                                             (lgfx::v1::bgr888_t *)bottomSideDebug);
 }
 
 void my_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
@@ -45,7 +82,6 @@ void my_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map
     drawDebugLights();
     lv_disp_flush_ready(disp);
 }
-
 
 uint32_t my_tick_function()
 {
@@ -121,10 +157,11 @@ void setup()
     Serial.println("Test");
 
     m5::M5Unified::config_t cfg;
-    cfg.output_power=false;
+    cfg.pmic_button = true;
+    cfg.output_power = false;
     M5.begin(cfg);
-    Serial.print("VBUS:");
-    bool hasLights = M5.Power.Axp192.isVBUS()==1;
+    Serial.print("Has lights:");
+    bool hasLights = M5.Power.Axp192.isVBUS() == 1;
     Serial.println(hasLights);
     lv_init();
     lv_log_register_print_cb(my_log_cb);
@@ -147,12 +184,54 @@ void setup()
     light.init(hasLights);
 }
 
+bool switchedOff = false;
+
 void loop()
 {
     lv_task_handler();
     vTaskDelay(1);
     sound.doProcessing();
-    if(!light.hasLights){
+    if (!light.hasLights)
+    {
         drawDebugLights();
+    }
+    if (M5.Power.getKeyState() == 2)
+    {
+        Serial.print(switchedOff);
+        Serial.println("POWERPRESSED");
+        switchedOff = !switchedOff;
+        if (switchedOff)
+        {
+            screens[0]->SetCurrent(false, 0);
+        }
+        else
+        {
+            screens[1]->SetCurrent(false, 0);
+        }
+    }
+    if (switchedOff)
+    {
+        int fade = light.getGlobalFade();
+        if (fade > 0)
+        {
+            light.setGlobalFade(fade - 1);
+            screens[0]->tickTimer(-1);
+            Serial.print(light.getGlobalFade());
+            Serial.println("Globalfade:");
+        }
+    }
+    else
+    {
+        int fade = light.getGlobalFade();
+        if (fade < 255)
+        {
+            fade = fade + 3;
+            if (fade > 255)
+                fade = 255;
+            light.setGlobalFade(fade);
+            Serial.print(fade);
+            Serial.println("Fadein");
+            screens[0]->tickTimer(-1);
+        }
     }
 }

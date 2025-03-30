@@ -2,6 +2,8 @@
 #include "screen.h"
 #include <M5Unified.hpp>
 
+#include "light_output.h"
+
 #define FULL_BRIGHTNESS 30
 
 class StandbyScreen : public Screen
@@ -9,7 +11,7 @@ class StandbyScreen : public Screen
     public:
     StandbyScreen()
     {
-        currentBrightness=FULL_BRIGHTNESS+2;
+        currentBrightness=FULL_BRIGHTNESS+20;
         Core2Brightness(currentBrightness);
         LV_IMAGE_DECLARE(standby);
         background = lv_imgbtn_create(screen);
@@ -17,13 +19,14 @@ class StandbyScreen : public Screen
         lv_imgbtn_set_src(background, LV_IMGBTN_STATE_PRESSED, NULL, &standby, NULL);
         lv_obj_center(background);
         HandleEvent(background, LV_EVENT_ALL);
-        enableTimer(1000);
+        standby_timer = enableTimer(1000);
     }
 
 
     virtual void OnEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code) 
     {
-        if(code==LV_EVENT_PRESSED){
+        int fadeAmount=LightOutput::GetLightOutput()->getGlobalFade();
+        if(code==LV_EVENT_PRESSED && fadeAmount==255){
             currentBrightness=FULL_BRIGHTNESS;
             Core2Brightness(currentBrightness);
             if(nextScreen!=NULL){
@@ -36,8 +39,16 @@ class StandbyScreen : public Screen
 
     virtual void onTimer(int id)
     {
-        if(currentBrightness>0){
-            currentBrightness-=1;
+        
+        int fadeAmount=LightOutput::GetLightOutput()->getGlobalFade();
+        if(fadeAmount!=255){
+            currentBrightness = (fadeAmount * FULL_BRIGHTNESS)>>8;
+        }else{
+            if(id==standby_timer){
+                if(currentBrightness>0){
+                    currentBrightness-=1;
+                }
+            }
         }
         Core2Brightness(currentBrightness);
     }
@@ -68,6 +79,7 @@ class StandbyScreen : public Screen
     Screen *mNextScreen;
 
     int currentBrightness;
+    int standby_timer;
 
 
 };

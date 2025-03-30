@@ -72,6 +72,11 @@ class Screen
         return id;
     }
 
+    void tickTimer(int id)
+    {
+        onTimer(id);
+    }
+
   protected:
 
     struct TimerInfo
