@@ -44,8 +44,8 @@ class DiscoScreen : public ColourScreen
         lv_obj_add_flag(output_mode, LV_OBJ_FLAG_ADV_HITTEST);
         setOutputModeImage();
 
-        HandleEvent(audio_mode, LV_EVENT_ALL);
-        HandleEvent(output_mode, LV_EVENT_ALL);
+        handleEvent(audio_mode, LV_EVENT_ALL);
+        handleEvent(output_mode, LV_EVENT_ALL);
         scroll_timer = enableTimer(20);
         screenTimeout=3600; // keep disco on for an hour before timing out
     }
@@ -153,8 +153,7 @@ class DiscoScreen : public ColourScreen
             s = 255 - s;
             audioV = (si->getLevel());
             // rotate - choose a colour based on fft and rotate it
-            // same as 0
-            // unless v is low in which case don't send a colour and fade instead
+            // unless v is low in which case fade instead
             lo->onColour(h, s, audioV, true, true);
             lo->scroll((audioV < 30));
         }
@@ -322,7 +321,7 @@ class DiscoScreen : public ColourScreen
         }
     }
 
-    virtual void OnEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
+    virtual void onEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
     {
         if (code == LV_EVENT_HIT_TEST && (target==output_mode|| target==audio_mode))
         {
@@ -359,7 +358,7 @@ class DiscoScreen : public ColourScreen
         {
             pressed = false;
         }
-        ColourScreen::OnEvent(e, target, code);
+        ColourScreen::onEvent(e, target, code);
     }
 
     std::array<const lv_img_dsc_t *, 3> audio_mode_images;

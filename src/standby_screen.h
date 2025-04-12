@@ -12,25 +12,25 @@ class StandbyScreen : public Screen
     StandbyScreen()
     {
         currentBrightness=FULL_BRIGHTNESS+20;
-        Core2Brightness(currentBrightness);
+        core2Brightness(currentBrightness);
         LV_IMAGE_DECLARE(standby);
         background = lv_imgbtn_create(screen);
         lv_imgbtn_set_src(background, LV_IMGBTN_STATE_RELEASED, NULL, &standby, NULL);
         lv_imgbtn_set_src(background, LV_IMGBTN_STATE_PRESSED, NULL, &standby, NULL);
         lv_obj_center(background);
-        HandleEvent(background, LV_EVENT_ALL);
+        handleEvent(background, LV_EVENT_ALL);
         standby_timer = enableTimer(1000);
     }
 
 
-    virtual void OnEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code) 
+    virtual void onEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code) 
     {
         int fadeAmount=LightOutput::GetLightOutput()->getGlobalFade();
         if(code==LV_EVENT_PRESSED && fadeAmount==255){
             currentBrightness=FULL_BRIGHTNESS;
-            Core2Brightness(currentBrightness);
+            core2Brightness(currentBrightness);
             if(nextScreen!=NULL){
-                nextScreen->SetCurrent(true);
+                nextScreen->setCurrent(true);
             }
         }
     }
@@ -50,11 +50,11 @@ class StandbyScreen : public Screen
                 }
             }
         }
-        Core2Brightness(currentBrightness);
+        core2Brightness(currentBrightness);
     }
 
   
-    void Core2Brightness(uint8_t lvl) {
+    void core2Brightness(uint8_t lvl) {
         // The backlight brightness is in steps of 25 in AXP192.cpp
         // calculation in SetDCVoltage: ( (voltage - 700) / 25 )
         // 2325 is the minimum "I can just about see a glow in a dark room" level of brightness.

@@ -79,7 +79,9 @@ void my_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map
 
     lv_draw_sw_rgb565_swap(px_map, w * h);
     M5.Display.pushImageDMA<uint16_t>(area->x1, area->y1, w, h, (uint16_t *)px_map);
-    drawDebugLights();
+    if(!M5.Power.Axp192.isVBUS()){
+        drawDebugLights();
+    }
     lv_disp_flush_ready(disp);
 }
 
@@ -122,7 +124,7 @@ void my_touchpad_read(lv_indev_t *drv, lv_indev_data_t *data)
     }
     for (int c = 0; c < screens.size(); c++)
     {
-        screens[c]->SetTouchPos(lastX, lastY);
+        screens[c]->setTouchPos(lastX, lastY);
     }
 }
 
@@ -133,20 +135,21 @@ void my_log_cb(lv_log_level_t level, const char *buf)
 
 void init_screens()
 {
-    //  screens[0]->SetCurrent(false);
+    //  screens[0]->setCurrent(false);
     screens[0] = new StandbyScreen();
     screens[1] = new ColourScreen();
     screens[2] = new DiscoScreen();
-    screens[0]->SetNext(screens[1]);
-    screens[1]->SetPrev(screens[0]);
-    screens[1]->SetNext(screens[2]);
-    screens[2]->SetPrev(screens[1]);
-    screens[2]->SetNext(screens[1]);
-    screens[0]->SetCurrent(false);
+    screens[0]->setNext(screens[1]);
+    screens[1]->setPrev(screens[0]);
+    screens[1]->setNext(screens[2]);
+    screens[2]->setPrev(screens[1]);
+    screens[2]->setNext(screens[1]);
+    screens[0]->setCurrent(false);
 }
 
 SoundInput sound;
 LightOutput light;
+TickType_t xLastWakeTime;
 
 // continue setup code
 void setup()
@@ -154,7 +157,7 @@ void setup()
     Serial.begin(115200);
     while (!Serial)
         ;
-    Serial.println("Test");
+    Serial.println("Startup");
 
     m5::M5Unified::config_t cfg;
     cfg.pmic_button = true;
@@ -182,6 +185,7 @@ void setup()
     init_screens();
     sound.init();
     light.init(hasLights);
+    xLastWakeTime = xTaskGetTickCount ();
 }
 
 bool switchedOff = false;
@@ -189,24 +193,24 @@ bool switchedOff = false;
 void loop()
 {
     lv_task_handler();
-    vTaskDelay(1);
+    vTaskDelayUntil(&xLastWakeTime,1);
     sound.doProcessing();
     if (!light.hasLights)
     {
-        drawDebugLights();
+        if(!M5.Power.Axp192.isVBUS()){
+            drawDebugLights();
+        }
     }
     if (M5.Power.getKeyState() == 2)
     {
-        Serial.print(switchedOff);
-        Serial.println("POWERPRESSED");
         switchedOff = !switchedOff;
         if (switchedOff)
         {
-            screens[0]->SetCurrent(false, 0);
+            screens[0]->setCurrent(false, 0);
         }
         else
         {
-            screens[1]->SetCurrent(false, 0);
+            screens[1]->setCurrent(false, 0);
         }
     }
     if (switchedOff)
@@ -216,8 +220,6 @@ void loop()
         {
             light.setGlobalFade(fade - 1);
             screens[0]->tickTimer(-1);
-            Serial.print(light.getGlobalFade());
-            Serial.println("Globalfade:");
         }
     }
     else
@@ -229,8 +231,6 @@ void loop()
             if (fade > 255)
                 fade = 255;
             light.setGlobalFade(fade);
-            Serial.print(fade);
-            Serial.println("Fadein");
             screens[0]->tickTimer(-1);
         }
     }

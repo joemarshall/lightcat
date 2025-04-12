@@ -7,18 +7,27 @@ class LightOutput
   public:
     bool hasLights;
 
-    static const int NUM_LED1 = 180;
-    static const int NUM_LED2 = 180;
+    static const int HEAD_BAR_LEDS=58;
+    static const int SIDE_ROOM_LEDS=116;
+
+    static const int SIDE_WALL_LEDS=116;
+    static const int TAIL_BAR_LEDS=60;
+
+    static const int NUM_LED1 = HEAD_BAR_LEDS+SIDE_ROOM_LEDS;
+    static const int NUM_LED2 = SIDE_WALL_LEDS+TAIL_BAR_LEDS;
 
     // LED count of first strip of
     // each one - STRIP1 = short then long
     // STRIP2 = long then short
-    static const int STRIP1_SPLIT_POINT = 60;
-    static const int STRIP2_SPLIT_POINT = 120;
+    static const int STRIP1_SPLIT_POINT = HEAD_BAR_LEDS;
+    static const int STRIP2_SPLIT_POINT = SIDE_WALL_LEDS;
     static const int NUM_LEDS = (NUM_LED1 + NUM_LED2);
     static const int STRIP1_PIN = 32;
     static const int STRIP2_PIN = 33;
 
+    // points where each section of the real LED bars exists inside
+    // the array
+    // - used for setting LEDS as 6 separate bars
     static const int point1 = NUM_LEDS - STRIP1_SPLIT_POINT / 2;
     static const int point2 = (point1 + STRIP1_SPLIT_POINT) % NUM_LEDS;
     static const int point3 = (point2 + (NUM_LED1 - STRIP1_SPLIT_POINT) / 2) % NUM_LEDS;
@@ -32,10 +41,10 @@ class LightOutput
     {
         nextBlockPos = 0;
         hasLights = inHasLights;
-        if (hasLights)
+//        if (hasLights)
         {
-            FastLED.addLeds<WS2813, STRIP1_PIN, BRG>(strip1Buffer, NUM_LED1);
-            FastLED.addLeds<WS2813, STRIP2_PIN, BRG>(strip2Buffer, NUM_LED2);
+            FastLED.addLeds<WS2813, STRIP1_PIN, GRB>(strip1Buffer, NUM_LED1);
+            FastLED.addLeds<WS2813, STRIP2_PIN, GRB>(strip2Buffer, NUM_LED2);
         }
         singleton = this;
         globalFade=255;
@@ -100,8 +109,8 @@ class LightOutput
         {
             // inject into the swirl
             // first one goes to position 0
-            int offset1 = STRIP1_SPLIT_POINT / 2 + 1;
-            int offset2 = offset1 + (NUM_LED1 - STRIP1_SPLIT_POINT) / 2;
+            const int offset1 = STRIP1_SPLIT_POINT / 2 + 1;
+            const int offset2 = offset1 + (NUM_LED1 - STRIP1_SPLIT_POINT) / 2;
             const int inject_points[6] = {0,       NUM_LEDS - 1,      offset1, NUM_LEDS - offset1,
                                           offset2, NUM_LEDS - offset2};
             for (int c = 0; c < 6; c++)
@@ -115,6 +124,15 @@ class LightOutput
         }
         updateRawBuffer();
     }
+
+    // lerp a 16 bit number by a 0-256 factor
+    static inline int lerp(int start,int end,int factor)
+    {
+        if(factor>256)factor=256;
+        int32_t scaled = start *(256-factor) + end*factor;
+        return scaled>>8;
+    }
+
     // set current colour with level==-1 if no colour selected
     // for spin/whirl, where it will output blank space
     void onColour(int h, int s, int v, bool updateBuffer = true, bool onTouch = false)
@@ -131,46 +149,33 @@ class LightOutput
         {
             // constant -
             //   level=255 = max
-            //   when level<64, fill first 6th of each end of the strip
-            //   at 192, fill all of strip
-            int startPos = NUM_LEDS / 12;
-            int endPos = NUM_LEDS / 12;
-            if (v > 64 && v < 192)
-            {
-                // at 64, startpos = NUM_LEDS/12
-                // at 192, startPos = NUM_LEDS/2
-                int vOffset=v-64;
-                startPos = (NUM_LEDS/2)*vOffset+ (NUM_LEDS/12)*(128-vOffset);
-                startPos>>=7; // divide by 128
-                vOffset = vOffset*2;
-                if(vOffset>128)vOffset=128;
-                endPos = (NUM_LEDS/2)*vOffset+ (NUM_LEDS/12)*(128-vOffset);
-                endPos>>=7;
-            }
-            else if (v >= 192)
-            {
-                startPos= NUM_LEDS/2;
-                endPos = NUM_LEDS / 2;
-            }
+            //   when level<128, fill first 6th of each end of the strip
+            //   at 170, fade from first 6th to end
+            //   at 213, fill all of strip
+            int fillAmount = (v-128)*3;
+            if(fillAmount<0)fillAmount=0;
+            if(fillAmount>255)fillAmount=255;
+            int32_t startFadePos = lerp((NUM_LEDS/12),(NUM_LEDS/2),fillAmount);
+            int32_t endFadePos = lerp((NUM_LEDS/12),(NUM_LEDS/2),fillAmount*2);
             Serial.print(v);
             Serial.print(":");
-            Serial.print(startPos);
+            Serial.print(startFadePos);
             Serial.print(",");
-            Serial.println(endPos);
-            for (int c = 0; c < startPos; c++)
+            Serial.println(endFadePos);
+            for (int c = 0; c < startFadePos; c++)
             {
                 light_buffer[c].h = h;
                 light_buffer[c].s = s;
                 light_buffer[c].v = v;
             }
-            for (int c = startPos; c < endPos; c++)
+            for (int c = startFadePos; c < endFadePos; c++)
             {
-                int thisV = (v * (endPos - c)) / (endPos - startPos);
+                int thisV = (v * (endFadePos - c)) / (endFadePos - startFadePos);
                 light_buffer[c].h = h;
                 light_buffer[c].s = s;
                 light_buffer[c].v = thisV;
             }
-            for (int c = endPos; c < NUM_LEDS / 2; c++)
+            for (int c = endFadePos; c < NUM_LEDS / 2; c++)
             {
                 light_buffer[c].h = 0;
                 light_buffer[c].s = 0;
@@ -267,21 +272,29 @@ class LightOutput
         case EFFECT_SWIRL:
             // whirling effect - goes down each side to meet at the end
             int break_point = NUM_LEDS >> 1;
-
+            CHSV prev_0,prev_1;
             if (fade)
             {
-                // copy last value to first value
-                light_buffer[0] = light_buffer[break_point - 1];
-                light_buffer[0].v = fadeAtEnd(light_buffer[0].v);
+                // copy last value from one side to first value
+                // on other side
+                prev_0=light_buffer[break_point];
+                prev_0.v=fadeAtEnd(prev_0.v);
+                prev_1=light_buffer[break_point - 1];
+                prev_1.v=fadeAtEnd(prev_1.v);
             }
-            // now make sure first pixel of both sides is the same
-            light_buffer[NUM_LEDS - 1] = light_buffer[0];
 
             // scroll one side forwards
             memmove(&light_buffer[1], &light_buffer[0], sizeof(CHSV) * (break_point - 1));
             // and the other side backwards
             memmove(&light_buffer[break_point], &light_buffer[break_point + 1],
                     sizeof(CHSV) * (NUM_LEDS - break_point - 1));
+
+            if(fade){
+                // copy end points into the start of the LED array
+                light_buffer[0]=prev_0;
+                light_buffer[NUM_LEDS - 1] = prev_1;
+            }
+
             break;
         }
         if (addColour)
@@ -380,7 +393,7 @@ class LightOutput
         //     Serial.println(strip2Buffer[c].r | (strip2Buffer[c].g) << 8);
         // }
         // show the LEDs
-        if (hasLights)
+//        if (hasLights)
         {
             FastLED.show();
         }

@@ -1,13 +1,13 @@
 #pragma once
 
-#include<vector>
+#include <vector>
 
 class Screen
 {
   public:
     Screen(lv_obj_t *parent = NULL, lv_obj_t *customScreen = NULL)
     {
-        active=false;
+        active = false;
         lastX = -1;
         lastY = -1;
         if (!customScreen)
@@ -20,29 +20,29 @@ class Screen
         }
         nextScreen = NULL;
         prevScreen = NULL;
+        lv_obj_add_event_cb(screen, Screen::staticOnEvent, LV_EVENT_SCREEN_LOADED, this);
     }
 
     virtual ~Screen()
     {
     }
 
-    lv_obj_t *GetScreen()
+    lv_obj_t *getScreen()
     {
         return screen;
     }
 
-    void SetNext(Screen *next)
+    void setNext(Screen *next)
     {
         nextScreen = next;
     }
 
-    void SetPrev(Screen *prev)
+    void setPrev(Screen *prev)
     {
         prevScreen = prev;
     }
 
-
-    void SetCurrent(bool fadeThis, int fadeTime = 500)
+    void setCurrent(bool fadeThis, int fadeTime = 500)
     {
         if (fadeThis)
         {
@@ -52,21 +52,20 @@ class Screen
         {
             lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, fadeTime, 0, false);
         }
-        onScreenLoad();
     }
 
-    void SetTouchPos(int x, int y)
+    void setTouchPos(int x, int y)
     {
         lastX = x;
         lastY = y;
     }
-    
+
     int enableTimer(int delay)
     {
-        int id=timers.size();
-        TimerInfo *t=new TimerInfo();
-        t->pThis=this;
-        t->timer_id=id;
+        int id = timers.size();
+        TimerInfo *t = new TimerInfo();
+        t->pThis = this;
+        t->timer_id = id;
         timers.push_back(t);
         lv_timer_create(onTimerStatic, delay, t);
         return id;
@@ -78,13 +77,12 @@ class Screen
     }
 
   protected:
-
     struct TimerInfo
     {
-        Screen*pThis;
+        Screen *pThis;
         int timer_id;
     };
-    std::vector<TimerInfo*> timers;
+    std::vector<TimerInfo *> timers;
 
     virtual void onTimer(int id)
     {
@@ -94,29 +92,36 @@ class Screen
     {
     }
 
-    virtual void OnEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
+    virtual void onEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
     {
         // do nothing default
         Serial.println("Fall through event fn called");
     }
 
-    virtual void HandleEvent(lv_obj_t *obj, lv_event_code_t filter)
+    virtual void handleEvent(lv_obj_t *obj, lv_event_code_t filter)
     {
-        lv_obj_add_event_cb(obj, Screen::StaticOnEvent, filter, this);
+        lv_obj_add_event_cb(obj, Screen::staticOnEvent, filter, this);
     }
 
-    static void StaticOnEvent(lv_event_t *e)
+    static void staticOnEvent(lv_event_t *e)
     {
         Screen *pThis = reinterpret_cast<Screen *>(lv_event_get_user_data(e));
         lv_obj_t *target = (lv_obj_t *)lv_event_get_current_target(e);
         lv_event_code_t code = lv_event_get_code(e);
 
-        pThis->OnEvent(e, target, code);
+        if (code == LV_EVENT_SCREEN_LOADED)
+        {
+            pThis->onScreenLoad();
+        }
+        else
+        {
+            pThis->onEvent(e, target, code);
+        }
     }
 
     static void onTimerStatic(lv_timer_t *data)
     {
-        TimerInfo *evt=(TimerInfo*)lv_timer_get_user_data(data);
+        TimerInfo *evt = (TimerInfo *)lv_timer_get_user_data(data);
         Screen *pThis = evt->pThis;
         if (lv_screen_active() == pThis->screen)
         {

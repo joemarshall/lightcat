@@ -97,23 +97,23 @@ class ColourScreen : public Screen
         lv_obj_set_x(down_img, 0);
 
 
-        HandleEvent(screen, LV_EVENT_ALL);
+        handleEvent(screen, LV_EVENT_ALL);
 
-        HandleEvent(colour_wheel, LV_EVENT_ALL);
-        HandleEvent(crosshair_img, LV_EVENT_ALL);
+        handleEvent(colour_wheel, LV_EVENT_ALL);
+        handleEvent(crosshair_img, LV_EVENT_ALL);
 
-        HandleEvent(up, LV_EVENT_ALL);
-        HandleEvent(up_img, LV_EVENT_ALL);
+        handleEvent(up, LV_EVENT_ALL);
+        handleEvent(up_img, LV_EVENT_ALL);
 
-        HandleEvent(down, LV_EVENT_ALL);
-        HandleEvent(down_img, LV_EVENT_ALL);
+        handleEvent(down, LV_EVENT_ALL);
+        handleEvent(down_img, LV_EVENT_ALL);
 
         disco_button = lv_button_create(screen);
         lv_obj_set_x(disco_button,106);
         lv_obj_set_y(disco_button,239);
         lv_obj_set_width(disco_button,106);
         lv_obj_add_flag(disco_button, LV_OBJ_FLAG_FLOATING);
-        HandleEvent(disco_button, LV_EVENT_LONG_PRESSED);
+        handleEvent(disco_button, LV_EVENT_LONG_PRESSED);
 
 
         cat_timer = enableTimer(5);
@@ -156,7 +156,7 @@ class ColourScreen : public Screen
         if(id==standby_timer){
           screenDeadTime+=1;
           if(screenDeadTime==screenTimeout && prevScreen!=NULL ){
-              prevScreen->SetCurrent(true);
+              prevScreen->setCurrent(true);
           }
 
         }
@@ -261,7 +261,7 @@ class ColourScreen : public Screen
         }
     }
 
-    virtual void OnEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
+    virtual void onEvent(lv_event_t *e, lv_obj_t *target, lv_event_code_t code)
     {
       screenDeadTime=0;
         if (code == LV_EVENT_HIT_TEST && target==colour_wheel)
@@ -283,7 +283,7 @@ class ColourScreen : public Screen
         }
         if(target==disco_button && code==LV_EVENT_LONG_PRESSED){
             // show disco mode window
-            nextScreen->SetCurrent(false);
+            nextScreen->setCurrent(false);
         }
         if (target == colour_wheel || target == crosshair_img)
         {
