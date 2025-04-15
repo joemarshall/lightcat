@@ -7,11 +7,11 @@ class LightOutput
   public:
     bool hasLights;
 
-    static const int HEAD_BAR_LEDS=58;
-    static const int SIDE_ROOM_LEDS=116;
+    static const int HEAD_BAR_LEDS=55;
+    static const int SIDE_ROOM_LEDS=114;
 
     static const int SIDE_WALL_LEDS=116;
-    static const int TAIL_BAR_LEDS=60;
+    static const int TAIL_BAR_LEDS=57;
 
     static const int NUM_LED1 = HEAD_BAR_LEDS+SIDE_ROOM_LEDS;
     static const int NUM_LED2 = SIDE_WALL_LEDS+TAIL_BAR_LEDS;
@@ -39,15 +39,24 @@ class LightOutput
 
     void init(bool inHasLights)
     {
+        lastH=0;
+        lastS=0;
+        lastV=128;
         nextBlockPos = 0;
         hasLights = inHasLights;
-//        if (hasLights)
-        {
-            FastLED.addLeds<WS2813, STRIP1_PIN, GRB>(strip1Buffer, NUM_LED1);
-            FastLED.addLeds<WS2813, STRIP2_PIN, GRB>(strip2Buffer, NUM_LED2);
-        }
+        FastLED.addLeds<WS2813, STRIP1_PIN, GRB>(strip1Buffer, NUM_LED1);
+        FastLED.addLeds<WS2813, STRIP2_PIN, GRB>(strip2Buffer, NUM_LED2);
         singleton = this;
         globalFade=255;
+        for(int c=0;c<NUM_LEDS;c++)
+        {
+            light_buffer[c].h=0;
+            light_buffer[c].s=0;
+            light_buffer[c].v=128;
+        }
+        currentEffect=EFFECT_CONSTANT;
+        updateRawBuffer();
+
     }
 
     void setGlobalFade(int val)
@@ -66,22 +75,25 @@ class LightOutput
     }
 
     // Gamma brightness lookup table <https://victornpb.github.io/gamma-table-generator>
-    // gamma = 2.80 steps = 256 range = 0-70
+    // gamma = 2.50 steps = 512 range = 0-70 (second half)
     // n.b. this also dims the LEDs to approx 50% of full brightness (1/3 of full current)
     const uint8_t GAMMA_TABLE[256] = {
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-        1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,
-        2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
-        4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,
-        7,  7,  7,  7,  7,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  10, 10, 10, 10, 10, 11, 11,
-        11, 11, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 16, 16, 16, 16, 17,
-        17, 17, 18, 18, 18, 19, 19, 19, 20, 20, 20, 21, 21, 21, 22, 22, 22, 23, 23, 24, 24, 24,
-        25, 25, 26, 26, 26, 27, 27, 28, 28, 29, 29, 29, 30, 30, 31, 31, 32, 32, 33, 33, 34, 34,
-        34, 35, 35, 36, 36, 37, 37, 38, 39, 39, 40, 40, 41, 41, 42, 42, 43, 43, 44, 45, 45, 46,
-        46, 47, 47, 48, 49, 49, 50, 51, 51, 52, 52, 53, 54, 54, 55, 56, 56, 57, 58, 58, 59, 60,
-        60, 61, 62, 63, 63, 64, 65, 65, 66, 67, 68, 68, 69, 70,
-    };
+        0,   1,   2,   3,   4,   4,   4,   4,   4,   4,   4,   4,   4,   4,   4,   4,
+        5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   6,   6,   6,   6,   6,
+        6,   6,   6,   6,   7,   7,   7,   7,   7,   7,   7,   7,   7,   8,   8,   8,
+        8,   8,   8,   8,   8,   9,   9,   9,   9,   9,   9,   9,  10,  10,  10,  10,
+       10,  10,  10,  11,  11,  11,  11,  11,  11,  12,  12,  12,  12,  12,  12,  12,
+       13,  13,  13,  13,  13,  14,  14,  14,  14,  14,  14,  15,  15,  15,  15,  15,
+       16,  16,  16,  16,  16,  17,  17,  17,  17,  17,  18,  18,  18,  18,  18,  19,
+       19,  19,  19,  20,  20,  20,  20,  20,  21,  21,  21,  21,  22,  22,  22,  22,
+       23,  23,  23,  23,  24,  24,  24,  24,  25,  25,  25,  25,  26,  26,  26,  27,
+       27,  27,  27,  28,  28,  28,  29,  29,  29,  29,  30,  30,  30,  31,  31,  31,
+       32,  32,  32,  32,  33,  33,  33,  34,  34,  34,  35,  35,  35,  36,  36,  36,
+       37,  37,  37,  38,  38,  38,  39,  39,  39,  40,  40,  40,  41,  41,  42,  42,
+       42,  43,  43,  43,  44,  44,  45,  45,  45,  46,  46,  47,  47,  47,  48,  48,
+       49,  49,  49,  50,  50,  51,  51,  51,  52,  52,  53,  53,  54,  54,  54,  55,
+       55,  56,  56,  57,  57,  57,  58,  58,  59,  59,  60,  60,  61,  61,  62,  62,
+       63,  63,  64,  64,  65,  65,  65,  66,  66,  67,  67,  68,  68,  69,  69,  70         };
 
     enum EffectType
     {
@@ -90,7 +102,7 @@ class LightOutput
         EFFECT_SWIRL,    // colour and light zoom out in both directions on the LEDs
         EFFECT_BLOCKS,   // colour and light on blocks - each colour sets another block
     };
-    void onMultipleColours(std::array<int, 6> &h, std::array<int, 6> &s, std::array<int, 6> &v)
+    void onMultipleColours(std::array<int32_t, 6> &h, std::array<int32_t, 6> &s, std::array<int32_t, 6> &v)
     {
         if (currentEffect == EFFECT_BLOCKS)
         {
@@ -139,12 +151,17 @@ class LightOutput
     {
         lastH = h;
         lastS = s;
-        lastV = v;
+        if(v!=-1){
+            if(v<255){
+                lastV = v;
+            }else{
+                lastV=255;
+            }
+        }
         if (!updateBuffer)
         {
             return;
         }
-        CHSV hsv = CHSV(h, s, v);
         if (currentEffect == EFFECT_CONSTANT && v != -1)
         {
             // constant -
@@ -157,11 +174,11 @@ class LightOutput
             if(fillAmount>255)fillAmount=255;
             int32_t startFadePos = lerp((NUM_LEDS/12),(NUM_LEDS/2),fillAmount);
             int32_t endFadePos = lerp((NUM_LEDS/12),(NUM_LEDS/2),fillAmount*2);
-            Serial.print(v);
-            Serial.print(":");
-            Serial.print(startFadePos);
-            Serial.print(",");
-            Serial.println(endFadePos);
+            // Serial.print(v);
+            // Serial.print(":");
+            // Serial.print(startFadePos);
+            // Serial.print(",");
+            // Serial.println(endFadePos);
             for (int c = 0; c < startFadePos; c++)
             {
                 light_buffer[c].h = h;
@@ -193,6 +210,11 @@ class LightOutput
             light_buffer[0].h = h;
             light_buffer[0].s = s;
             light_buffer[0].v = v;
+            if(currentEffect==EFFECT_SWIRL){
+                light_buffer[NUM_LEDS-1].h = h;
+                light_buffer[NUM_LEDS-1].s = s;
+                light_buffer[NUM_LEDS-1].v = v;    
+            }
         }
         else if (currentEffect == EFFECT_BLOCKS)
         {
@@ -221,13 +243,21 @@ class LightOutput
 
     void setEffect(EffectType effect)
     {
-        currentEffect = effect;
+        if(currentEffect!=effect){
+            currentEffect = effect;
+            if(currentEffect!=EFFECT_CONSTANT){
+                for(int c=0;c<NUM_LEDS;c++)
+                {
+                    light_buffer[c].v=0;
+                }
+            }
+        }
     }
 
     inline uint8_t fadeAtEnd(uint8_t value)
     {
-        uint32_t newVal = (((uint32_t)value) * 3) >> 2;
-        return (uint8_t)newVal;
+        if(value<64)return 0;
+        return value-64;
     }
 
     void scroll(bool fade)

@@ -119,7 +119,15 @@ class SoundInput
     }
     int16_t getLevel()
     {
-        return lastLevel;
+        const int BASE_LEVEL=100;
+        int audioV=lastLevel;
+        if(audioV<BASE_LEVEL){
+            audioV=0;
+        }else{
+            audioV=(255*(audioV-BASE_LEVEL))/(255-BASE_LEVEL);
+        }
+        //Serial.println(audioV);
+        return audioV;
     }
     const SpectrumBufType &getSpectrum()
     {
@@ -165,7 +173,7 @@ class SoundInput
                 smoothedPeak = (smoothedPeak *254)>>8;
             }
         }
-        int32_t divisor=smoothedPeak>>8;
+        int32_t divisor=smoothedPeak>>7;
         if(divisor==0)divisor=1;
         lastLevel = (sum *255)/ divisor;
         if (lastLevel > 255)

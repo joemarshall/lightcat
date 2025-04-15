@@ -357,7 +357,7 @@
 #define LV_ATTRIBUTE_LARGE_RAM_ARRAY
 
 /*Place performance critical functions into a faster memory (e.g RAM)*/
-#define LV_ATTRIBUTE_FAST_MEM IRAM_ATTR
+#define LV_ATTRIBUTE_FAST_MEM
 
 /*Export integer constant to binding. This macro is used with constants in the form of LV_<CONST> that
  *should also appear on LVGL binding API such as Micropython.*/
@@ -375,10 +375,10 @@
 
 /*Montserrat fonts with ASCII range and some symbols using bpp = 4
  *https://fonts.google.com/specimen/Montserrat*/
-#define LV_FONT_MONTSERRAT_8  1
+#define LV_FONT_MONTSERRAT_8  0
 #define LV_FONT_MONTSERRAT_10 0
 #define LV_FONT_MONTSERRAT_12 0
-#define LV_FONT_MONTSERRAT_14 0
+#define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_16 0
 #define LV_FONT_MONTSERRAT_18 0
 #define LV_FONT_MONTSERRAT_20 0
@@ -412,7 +412,7 @@
 #define LV_FONT_CUSTOM_DECLARE
 
 /*Always set a default font*/
-#define LV_FONT_DEFAULT &lv_font_montserrat_8
+#define LV_FONT_DEFAULT &lv_font_montserrat_14
 
 /*Enable handling large font and/or fonts with a lot of characters.
  *The limit depends on the font size, font face and bpp.
@@ -476,17 +476,17 @@
 
 #define LV_WIDGETS_HAS_DEFAULT_VALUE  1
 
-#define LV_USE_ANIMIMG    0
+#define LV_USE_ANIMIMG    1
 
-#define LV_USE_ARC        0
+#define LV_USE_ARC        1
 
-#define LV_USE_BAR        0
+#define LV_USE_BAR        1
 
 #define LV_USE_BUTTON        1
 
-#define LV_USE_BUTTONMATRIX  0
+#define LV_USE_BUTTONMATRIX  1
 
-#define LV_USE_CALENDAR   0
+#define LV_USE_CALENDAR   1
 #if LV_USE_CALENDAR
     #define LV_CALENDAR_WEEK_STARTS_MONDAY 0
     #if LV_CALENDAR_WEEK_STARTS_MONDAY
@@ -500,19 +500,19 @@
     #define LV_USE_CALENDAR_HEADER_DROPDOWN 1
 #endif  /*LV_USE_CALENDAR*/
 
-#define LV_USE_CANVAS     0
+#define LV_USE_CANVAS     1
 
-#define LV_USE_CHART      0
+#define LV_USE_CHART      1
 
-#define LV_USE_CHECKBOX   0
+#define LV_USE_CHECKBOX   1
 
-#define LV_USE_DROPDOWN   0   /*Requires: lv_label*/
+#define LV_USE_DROPDOWN   1   /*Requires: lv_label*/
 
 #define LV_USE_IMAGE      1   /*Requires: lv_label*/
 
 #define LV_USE_IMAGEBUTTON     1
 
-#define LV_USE_KEYBOARD   0
+#define LV_USE_KEYBOARD   1
 
 #define LV_USE_LABEL      1
 #if LV_USE_LABEL
@@ -521,46 +521,46 @@
     #define LV_LABEL_WAIT_CHAR_COUNT 3  /*The count of wait chart*/
 #endif
 
-#define LV_USE_LED        0
+#define LV_USE_LED        1
 
-#define LV_USE_LINE       0
+#define LV_USE_LINE       1
 
-#define LV_USE_LIST       0
+#define LV_USE_LIST       1
 
-#define LV_USE_MENU       0
+#define LV_USE_MENU       1
 
-#define LV_USE_MSGBOX     0
+#define LV_USE_MSGBOX     1
 
-#define LV_USE_ROLLER     0   /*Requires: lv_label*/
+#define LV_USE_ROLLER     1   /*Requires: lv_label*/
 
-#define LV_USE_SCALE      0
+#define LV_USE_SCALE      1
 
-#define LV_USE_SLIDER     0   /*Requires: lv_bar*/
+#define LV_USE_SLIDER     1   /*Requires: lv_bar*/
 
-#define LV_USE_SPAN       0
+#define LV_USE_SPAN       1
 #if LV_USE_SPAN
     /*A line text can contain maximum num of span descriptor */
     #define LV_SPAN_SNIPPET_STACK_SIZE 64
 #endif
 
-#define LV_USE_SPINBOX    0
+#define LV_USE_SPINBOX    1
 
-#define LV_USE_SPINNER    0
+#define LV_USE_SPINNER    1
 
-#define LV_USE_SWITCH     0
+#define LV_USE_SWITCH     1
 
-#define LV_USE_TEXTAREA   0   /*Requires: lv_label*/
+#define LV_USE_TEXTAREA   1   /*Requires: lv_label*/
 #if LV_USE_TEXTAREA != 0
     #define LV_TEXTAREA_DEF_PWD_SHOW_TIME 1500    /*ms*/
 #endif
 
-#define LV_USE_TABLE      0
+#define LV_USE_TABLE      1
 
-#define LV_USE_TABVIEW    0
+#define LV_USE_TABVIEW    1
 
-#define LV_USE_TILEVIEW   0
+#define LV_USE_TILEVIEW   1
 
-#define LV_USE_WIN        0
+#define LV_USE_WIN        1
 
 /*==================
  * THEMES
@@ -922,7 +922,7 @@
 *==================*/
 
 /*Enable the examples to be built with the library*/
-#define LV_BUILD_EXAMPLES 0
+#define LV_BUILD_EXAMPLES 1
 
 /*===================
  * DEMO USAGE

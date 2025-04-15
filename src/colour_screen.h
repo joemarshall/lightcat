@@ -13,10 +13,10 @@ class ColourScreen : public Screen
     {
       h=0;
       s=0;
-      v=255;
+      v=128;
       screenTimeout=120;
       screenDeadTime=0;
-        vStep = 0;
+      vStep = 0;
         // #ifdef OUTPUT_COLOUR_PICKER_IMAGE
         //         Serial.println("P3");
         //         Serial.println("201 201");
@@ -52,7 +52,6 @@ class ColourScreen : public Screen
         //             Serial.println("END");
         //         }
         // #endif // OUTPUT_COLOUR_IMAGE
-        h, s, v = 255, 255, 128;
         LV_IMAGE_DECLARE(wheel);
         LV_IMAGE_DECLARE(wheel_pressed);
         LV_IMAGE_DECLARE(crosshairs);

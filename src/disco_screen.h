@@ -86,7 +86,7 @@ class DiscoScreen : public ColourScreen
             case 1: // audio level only - pass it in
                 audioV = (si->getLevel());
                 lo->onColour(h, s, audioV, false);
-                lo->scroll(audioV<30);
+                lo->scroll(audioV<10);
                 break;
             case 2: // auto colour and audio level
                 // handle differently depending on
@@ -155,7 +155,7 @@ class DiscoScreen : public ColourScreen
             // rotate - choose a colour based on fft and rotate it
             // unless v is low in which case fade instead
             lo->onColour(h, s, audioV, true, true);
-            lo->scroll((audioV < 30));
+            lo->scroll((audioV < 10));
         }
         break;
         case 1: // segmented - visualise fft on the sides
@@ -229,7 +229,7 @@ class DiscoScreen : public ColourScreen
                         Serial.println(segment);
                     }
                 }
-                if (curLevel < 30)
+                if (curLevel < 10)
                 {
                     for (int segment = 0; segment < 6; segment++)
                     {
@@ -371,7 +371,7 @@ class DiscoScreen : public ColourScreen
     int cur_audio_mode;
     int cur_output_mode;
 
-    uint8_t audioV;
+    uint32_t audioV;
 
     int scroll_timer;
 };

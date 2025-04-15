@@ -1,4 +1,5 @@
 #include <Arduino.h>
+
 #include <M5Unified.h>
 
 #include <array>
@@ -12,6 +13,7 @@
 #include "light_output.h"
 #include "sound_input.h"
 #include "standby_screen.h"
+
 
 std::array<Screen *, 3> screens;
 
